@@ -221,10 +221,13 @@ function renderHome() {
       `).join('')}
     </div>
 
-    <!-- Кнопка записаться -->
+    <!-- Кнопки действий -->
     <div class="main-btn-wrap pb-tab">
       <button class="main-btn" onclick="switchTab('catalog')">
         💅 Записаться
+      </button>
+      <button class="share-btn" onclick="shareBot()">
+        🔗 Поделиться с другом
       </button>
     </div>
   `;
@@ -862,10 +865,68 @@ function init() {
       splash.style.display = 'none';
       document.getElementById('app').classList.remove('hidden');
       document.getElementById('tab-bar').classList.remove('hidden');
-      // Показать оффер при первом визите
-      showOfferIfNeeded();
+      // Показать онбординг (или оффер) при первом визите
+      showOnboardingIfNeeded();
     }, 300);
   }, 1200);
+}
+
+/* ── Онбординг ── */
+function showOnboardingIfNeeded() {
+  if (localStorage.getItem('onboarding_done')) {
+    showOfferIfNeeded();
+    return;
+  }
+  // Обращение по имени из Telegram
+  const firstName = tg?.initDataUnsafe?.user?.first_name;
+  if (firstName) {
+    document.getElementById('onboarding-title').textContent = `Привет, ${firstName}! 👋`;
+  }
+  setTimeout(() => {
+    document.getElementById('onboarding-overlay').classList.remove('hidden');
+  }, 400);
+}
+
+function closeOnboarding() {
+  localStorage.setItem('onboarding_done', '1');
+  haptic('medium');
+  const overlay = document.getElementById('onboarding-overlay');
+  overlay.classList.add('hiding');
+  setTimeout(() => {
+    overlay.classList.add('hidden');
+    overlay.classList.remove('hiding');
+    showOfferIfNeeded();
+  }, 320);
+}
+
+/* ── Поделиться ── */
+function shareBot() {
+  haptic('light');
+  const url = `https://t.me/${MASTER.botUsername}?start=from_share`;
+  const text = `Записывайся к мастеру маникюра онлайн — удобно и быстро 💅`;
+  if (tg) {
+    tg.showPopup({
+      title: 'Поделиться с другом',
+      message: 'Отправь другу ссылку на запись к мастеру 💅',
+      buttons: [
+        { id: 'share', type: 'default', text: 'Отправить в Telegram' },
+        { id: 'copy', type: 'default', text: 'Скопировать ссылку' },
+        { type: 'cancel', text: 'Закрыть' }
+      ]
+    }, (btnId) => {
+      if (btnId === 'share') {
+        tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`);
+      } else if (btnId === 'copy') {
+        navigator.clipboard?.writeText(url).then(() => {
+          hapticNotify('success');
+          tg.showAlert('Ссылка скопирована!');
+        });
+      }
+    });
+  } else {
+    navigator.clipboard?.writeText(url);
+    alert('Ссылка скопирована: ' + url);
+  }
 }
 
 /* ── Оффер-модалка ── */

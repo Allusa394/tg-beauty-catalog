@@ -103,6 +103,33 @@
   </nav>
 
   <!-- ═══════════════════════════════════════
+       ОНБОРДИНГ (самый первый визит)
+       ═══════════════════════════════════════ -->
+  <div id="onboarding-overlay" class="hidden">
+    <div class="offer-card">
+      <div class="offer-drag-handle"></div>
+      <div class="offer-emoji">👋</div>
+      <div class="offer-title" id="onboarding-title">Привет!</div>
+      <div class="offer-subtitle">Рада видеть тебя у Анны Козловой — мастера маникюра и педикюра</div>
+      <div class="offer-bullets">
+        <div class="offer-bullet">
+          <div class="offer-bullet-dot">💅</div>
+          <span>Смотри услуги и цены — всё честно и подробно</span>
+        </div>
+        <div class="offer-bullet">
+          <div class="offer-bullet-dot">📅</div>
+          <span>Записывайся онлайн — выбирай удобное время</span>
+        </div>
+        <div class="offer-bullet">
+          <div class="offer-bullet-dot">🎁</div>
+          <span>Подпишись на бота — получи скидку 15% на первую запись</span>
+        </div>
+      </div>
+      <button class="offer-cta" onclick="closeOnboarding()">Начать 💅</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
        ОФФЕР-МОДАЛКА (первый визит)
        ═══════════════════════════════════════ -->
   <div id="offer-overlay" class="hidden">
