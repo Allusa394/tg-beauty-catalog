@@ -888,7 +888,7 @@ function closeOffer(goToBot) {
   }, 320);
   if (goToBot) {
     hapticNotify('success');
-    const url = 'https://t.me/anna_beauty_nail_bot?start=from_app';
+    const url = `https://t.me/${MASTER.botUsername}?start=from_app`;
     if (tg) tg.openTelegramLink(url);
     else window.open(url, '_blank');
   }
