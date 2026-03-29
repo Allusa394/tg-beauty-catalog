@@ -385,15 +385,20 @@ html, body {
   display: flex;
   gap: 10px;
   overflow-x: auto;
-  padding: 0 16px 4px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  padding: 0 16px 8px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
 }
-.popular-scroll::-webkit-scrollbar { display: none; }
+.popular-scroll::-webkit-scrollbar { height: 3px; }
+.popular-scroll::-webkit-scrollbar-track { background: transparent; }
+.popular-scroll::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
 
 .popular-card {
   flex-shrink: 0;
   width: 140px;
+  scroll-snap-align: start;
   background: var(--bg-card);
   border-radius: var(--radius-card);
   padding: 14px 12px;
@@ -485,10 +490,14 @@ html, body {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 0 16px 4px;
-  scrollbar-width: none;
+  padding: 0 16px 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) transparent;
 }
-.portfolio-scroll::-webkit-scrollbar { display: none; }
+.portfolio-scroll::-webkit-scrollbar { height: 3px; }
+.portfolio-scroll::-webkit-scrollbar-track { background: transparent; }
+.portfolio-scroll::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 2px; }
 
 .portfolio-item {
   flex-shrink: 0;
