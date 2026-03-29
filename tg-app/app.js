@@ -873,6 +873,10 @@ function init() {
 
 /* ── Онбординг ── */
 function showOnboardingIfNeeded() {
+  // Сброс для тестирования — убрать после проверки
+  localStorage.removeItem('onboarding_done');
+  localStorage.removeItem('offer_shown');
+
   if (localStorage.getItem('onboarding_done')) {
     showOfferIfNeeded();
     return;
