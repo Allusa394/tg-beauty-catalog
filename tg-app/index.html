@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <!-- Запрет масштабирования — обязательно для Telegram Mini App -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="format-detection" content="telephone=no">
+  <title>Анна Козлова — Мастер маникюра</title>
+
+  <!-- Telegram Web App SDK — подключать первым, до всех скриптов -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════
+       SPLASH-ЭКРАН (загрузка приложения)
+       Скрывается автоматически через 1.2 сек
+       ═══════════════════════════════════════ -->
+  <div id="splash">
+    <div class="splash-emoji">💅</div>
+    <div class="splash-name">Анна Козлова</div>
+    <div class="splash-sub">Мастер маникюра и педикюра</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════
+       ОСНОВНОЕ ПРИЛОЖЕНИЕ
+       Скрыто до конца загрузки splash
+       ═══════════════════════════════════════ -->
+  <div id="app" class="hidden">
+
+    <!-- Контейнер для всех экранов -->
+    <div id="screens-container">
+
+      <!-- ─────────────────────────────────
+           ТАБ-ЭКРАНЫ (переключаются снизу)
+           Содержимое рендерится через JS
+           ───────────────────────────────── -->
+
+      <!-- Главная -->
+      <div id="tab-home" class="screen tab-screen active"></div>
+
+      <!-- Каталог услуг -->
+      <div id="tab-catalog" class="screen tab-screen"></div>
+
+      <!-- Мои записи -->
+      <div id="tab-bookings" class="screen tab-screen"></div>
+
+      <!-- О мастере -->
+      <div id="tab-about" class="screen tab-screen"></div>
+
+      <!-- ─────────────────────────────────
+           PUSH-ЭКРАНЫ (открываются поверх)
+           Содержимое рендерится через JS
+           ───────────────────────────────── -->
+
+      <!-- Карточка услуги -->
+      <div id="screen-service" class="screen push-screen"></div>
+
+      <!-- Выбор даты и времени -->
+      <div id="screen-datetime" class="screen push-screen"></div>
+
+      <!-- Подтверждение записи -->
+      <div id="screen-confirm" class="screen push-screen"></div>
+
+      <!-- Успешная запись -->
+      <div id="screen-success" class="screen push-screen"></div>
+
+      <!-- Все отзывы -->
+      <div id="screen-reviews" class="screen push-screen"></div>
+
+    </div><!-- /screens-container -->
+
+  </div><!-- /app -->
+
+  <!-- ═══════════════════════════════════════
+       НИЖНЯЯ НАВИГАЦИЯ (Tab Bar)
+       Всегда поверх контента, скрыт во время splash
+       ═══════════════════════════════════════ -->
+  <nav id="tab-bar" class="tab-bar hidden">
+
+    <button class="tab-btn active" data-tab="home">
+      <span class="tab-icon">🏠</span>
+      <span class="tab-label">Главная</span>
+    </button>
+
+    <button class="tab-btn" data-tab="catalog">
+      <span class="tab-icon">💅</span>
+      <span class="tab-label">Услуги</span>
+    </button>
+
+    <button class="tab-btn" data-tab="bookings">
+      <span class="tab-icon">📅</span>
+      <span class="tab-label">Записи</span>
+    </button>
+
+    <button class="tab-btn" data-tab="about">
+      <span class="tab-icon">👩‍🎨</span>
+      <span class="tab-label">О мастере</span>
+    </button>
+
+  </nav>
+
+  <!-- Данные (услуги, мастер, отзывы) — подключать до app.js -->
+  <script src="data.js"></script>
+  <!-- Логика приложения и навигация -->
+  <script src="app.js"></script>
+
+</body>
+</html>

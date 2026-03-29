@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Предпросмотр — телефон</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: #0f0f1a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, sans-serif;
+    }
+
+    .label {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255,255,255,0.4);
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .reload-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #34C759;
+      flex-shrink: 0;
+      transition: background 0.2s, transform 0.2s;
+    }
+
+    .reload-dot.flashing {
+      background: #2AABEE;
+      transform: scale(1.4);
+    }
+
+    .reload-info {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .reload-countdown {
+      font-size: 11px;
+      color: rgba(255,255,255,0.25);
+    }
+
+    .reload-btn {
+      position: fixed;
+      top: 20px;
+      right: 32px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.5);
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      font-family: -apple-system, sans-serif;
+    }
+
+    .reload-btn:hover {
+      background: rgba(255,255,255,0.14);
+      color: rgba(255,255,255,0.85);
+    }
+
+    .pause-btn {
+      position: fixed;
+      top: 20px;
+      right: 120px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.5);
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      font-family: -apple-system, sans-serif;
+    }
+
+    .pause-btn:hover {
+      background: rgba(255,255,255,0.14);
+      color: rgba(255,255,255,0.85);
+    }
+
+    .pause-btn.paused {
+      border-color: rgba(255,149,0,0.4);
+      color: rgba(255,149,0,0.7);
+    }
+
+    .phone {
+      width: 393px;
+      height: 852px;
+      background: #111;
+      border-radius: 52px;
+      padding: 14px;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.08),
+        0 40px 120px rgba(0,0,0,0.8),
+        inset 0 0 0 1px rgba(255,255,255,0.04);
+      position: relative;
+    }
+
+    /* Боковые кнопки */
+    .phone::before {
+      content: '';
+      position: absolute;
+      right: -3px;
+      top: 140px;
+      width: 3px;
+      height: 70px;
+      background: #2a2a2a;
+      border-radius: 0 3px 3px 0;
+      box-shadow: 0 90px 0 #2a2a2a;
+    }
+    .phone::after {
+      content: '';
+      position: absolute;
+      left: -3px;
+      top: 120px;
+      width: 3px;
+      height: 42px;
+      background: #2a2a2a;
+      border-radius: 3px 0 0 3px;
+      box-shadow: 0 56px 0 #2a2a2a, 0 112px 0 #2a2a2a;
+    }
+
+    .screen {
+      width: 100%;
+      height: 100%;
+      border-radius: 40px;
+      overflow: hidden;
+      position: relative;
+      background: #fff;
+    }
+
+    /* Dynamic island */
+    .island {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 126px;
+      height: 37px;
+      background: #000;
+      border-radius: 20px;
+      z-index: 10;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      border-radius: 40px;
+    }
+
+    /* Шкала времени наверху */
+    .status-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 54px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 16px 24px 0;
+      z-index: 9;
+      pointer-events: none;
+    }
+
+    .status-time {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      mix-blend-mode: difference;
+    }
+
+    .status-icons {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      font-size: 13px;
+      color: #fff;
+      mix-blend-mode: difference;
+    }
+  </style>
+</head>
+<body>
+  <div class="label">
+    <div class="reload-dot" id="dot"></div>
+    <div class="reload-info">
+      <span>Предпросмотр мобильной версии</span>
+      <span class="reload-countdown" id="countdown">обновление через 2с</span>
+    </div>
+  </div>
+
+  <button class="pause-btn" id="pauseBtn" onclick="togglePause()">⏸ Пауза</button>
+  <button class="reload-btn" onclick="reloadNow()">↺ Обновить</button>
+
+  <div class="phone">
+    <div class="screen">
+      <div class="island"></div>
+      <iframe id="preview" src="tg-app/index.html" title="App preview"></iframe>
+    </div>
+  </div>
+
+  <script>
+    const INTERVAL = 2000; // мс между обновлениями
+    let paused = false;
+    let remaining = INTERVAL;
+    let lastTick = Date.now();
+    let timer = null;
+
+    const iframe    = document.getElementById('preview');
+    const dot       = document.getElementById('dot');
+    const countdown = document.getElementById('countdown');
+    const pauseBtn  = document.getElementById('pauseBtn');
+
+    function reloadNow() {
+      dot.classList.add('flashing');
+      setTimeout(() => dot.classList.remove('flashing'), 300);
+
+      // Перезагружаем iframe без мигания — меняем src с cache-bust
+      const base = 'tg-app/index.html';
+      iframe.src = base + '?t=' + Date.now();
+
+      remaining = INTERVAL;
+      lastTick = Date.now();
+      updateCountdown();
+    }
+
+    function updateCountdown() {
+      if (paused) {
+        countdown.textContent = 'на паузе';
+        return;
+      }
+      const sec = Math.ceil(remaining / 1000);
+      countdown.textContent = `обновление через ${sec}с`;
+    }
+
+    function tick() {
+      if (paused) return;
+      const now = Date.now();
+      remaining -= (now - lastTick);
+      lastTick = now;
+
+      if (remaining <= 0) {
+        reloadNow();
+      } else {
+        updateCountdown();
+      }
+    }
+
+    function togglePause() {
+      paused = !paused;
+      if (paused) {
+        pauseBtn.textContent = '▶ Продолжить';
+        pauseBtn.classList.add('paused');
+        dot.style.background = '#FF9500';
+        countdown.textContent = 'на паузе';
+      } else {
+        pauseBtn.textContent = '⏸ Пауза';
+        pauseBtn.classList.remove('paused');
+        dot.style.background = '#34C759';
+        remaining = INTERVAL;
+        lastTick = Date.now();
+        updateCountdown();
+      }
+    }
+
+    // Тикаем каждые 200мс для плавного обратного отсчёта
+    lastTick = Date.now();
+    setInterval(tick, 200);
+    updateCountdown();
+  </script>
+</body>
+</html>
