@@ -197,6 +197,13 @@ function renderHome() {
       </div>
     </div>
 
+    <!-- Кнопка поделиться -->
+    <div style="padding: 0 16px 4px;">
+      <button class="share-btn" onclick="shareBot()">
+        🔗 Поделиться с другом
+      </button>
+    </div>
+
     <!-- Популярные услуги -->
     <div class="section">
       <div class="section-title">Популярные услуги</div>
@@ -221,13 +228,10 @@ function renderHome() {
       `).join('')}
     </div>
 
-    <!-- Кнопки действий -->
+    <!-- Кнопка записаться -->
     <div class="main-btn-wrap pb-tab">
       <button class="main-btn" onclick="switchTab('catalog')">
         💅 Записаться
-      </button>
-      <button class="share-btn" onclick="shareBot()">
-        🔗 Поделиться с другом
       </button>
     </div>
   `;
