@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+нт<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
@@ -101,6 +101,34 @@
     </button>
 
   </nav>
+
+  <!-- ═══════════════════════════════════════
+       ОФФЕР-МОДАЛКА (первый визит)
+       ═══════════════════════════════════════ -->
+  <div id="offer-overlay" class="hidden">
+    <div class="offer-card">
+      <div class="offer-drag-handle"></div>
+      <div class="offer-emoji">🎁</div>
+      <div class="offer-title">Скидка <span>15%</span> на первую запись</div>
+      <div class="offer-subtitle">Подпишитесь на бота — получите промокод в личное сообщение</div>
+      <div class="offer-bullets">
+        <div class="offer-bullet">
+          <div class="offer-bullet-dot">🔔</div>
+          <span>Напомним о записи за день</span>
+        </div>
+        <div class="offer-bullet">
+          <div class="offer-bullet-dot">⚡</div>
+          <span>Первыми узнаёте о свободных окошках</span>
+        </div>
+        <div class="offer-bullet">
+          <div class="offer-bullet-dot">🎀</div>
+          <span>Эксклюзивные акции для подписчиков</span>
+        </div>
+      </div>
+      <button class="offer-cta" onclick="closeOffer(true)">Получить скидку 15%</button>
+      <button class="offer-skip" onclick="closeOffer(false)">Пропустить</button>
+    </div>
+  </div>
 
   <!-- Данные (услуги, мастер, отзывы) — подключать до app.js -->
   <script src="data.js"></script>

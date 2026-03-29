@@ -862,8 +862,36 @@ function init() {
       splash.style.display = 'none';
       document.getElementById('app').classList.remove('hidden');
       document.getElementById('tab-bar').classList.remove('hidden');
+      // Показать оффер при первом визите
+      showOfferIfNeeded();
     }, 300);
   }, 1200);
+}
+
+/* ── Оффер-модалка ── */
+function showOfferIfNeeded() {
+  if (localStorage.getItem('offer_shown')) return;
+  setTimeout(() => {
+    const overlay = document.getElementById('offer-overlay');
+    overlay.classList.remove('hidden');
+  }, 600);
+}
+
+function closeOffer(goToBot) {
+  localStorage.setItem('offer_shown', '1');
+  const overlay = document.getElementById('offer-overlay');
+  overlay.classList.add('hiding');
+  haptic('medium');
+  setTimeout(() => {
+    overlay.classList.add('hidden');
+    overlay.classList.remove('hiding');
+  }, 320);
+  if (goToBot) {
+    hapticNotify('success');
+    const url = 'https://t.me/anna_beauty_nail_bot?start=from_app';
+    if (tg) tg.openLink(url);
+    else window.open(url, '_blank');
+  }
 }
 
 // Запуск после загрузки DOM

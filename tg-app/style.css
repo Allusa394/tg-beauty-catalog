@@ -1443,6 +1443,169 @@ button:focus-visible { outline: 2px solid var(--accent); }
   color: var(--text-secondary);
 }
 
+/* ── Оффер-модалка ── */
+#offer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 500;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 0 env(safe-area-inset-bottom);
+  animation: offer-bg-in 0.35s ease;
+}
+
+@keyframes offer-bg-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+#offer-overlay.hiding {
+  animation: offer-bg-out 0.3s ease forwards;
+}
+
+@keyframes offer-bg-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.offer-card {
+  background: var(--bg-card);
+  border-radius: 28px 28px 0 0;
+  padding: 32px 24px 36px;
+  width: 100%;
+  max-width: 430px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  animation: offer-card-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes offer-card-in {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+#offer-overlay.hiding .offer-card {
+  animation: offer-card-out 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes offer-card-out {
+  from { transform: translateY(0); }
+  to   { transform: translateY(110%); }
+}
+
+.offer-drag-handle {
+  width: 40px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-bottom: 24px;
+}
+
+.offer-emoji {
+  font-size: 56px;
+  line-height: 1;
+  margin-bottom: 16px;
+  animation: offer-emoji-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+}
+
+@keyframes offer-emoji-bounce {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.offer-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+  text-align: center;
+  letter-spacing: -0.4px;
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+
+.offer-title span {
+  color: var(--accent);
+}
+
+.offer-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.offer-bullets {
+  width: 100%;
+  background: var(--bg-input);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.offer-bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.offer-bullet-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.offer-cta {
+  width: 100%;
+  height: 54px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-btn);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow-btn);
+  margin-bottom: 14px;
+  transition: transform 0.1s, opacity 0.1s;
+  letter-spacing: -0.2px;
+}
+
+.offer-cta:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
+
+.offer-skip {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 16px;
+  font-family: inherit;
+}
+
 /* — Скрытие — */
 .hidden { display: none !important; }
 
