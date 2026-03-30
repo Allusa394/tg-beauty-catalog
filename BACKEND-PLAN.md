@@ -189,17 +189,24 @@ POST   /api/payment/webhook            — Подтверждение оплат
 
 ### Этап 6: Деплой на VPS
 
-- [ ] Арендовать VPS на Beget, установить Node.js + PM2
+> ⏸ **ПАУЗА** — ждём клиентов, потом платим за VPS.
+> Пока даём демо-ссылку мастерам: https://t.me/anna_beauty_nail_bot
+> Полная инструкция деплоя: см. **DEPLOYMENT.md**
+
+- [x] Supabase — таблицы созданы (schema.sql выполнен)
+- [x] .env заполнен (Supabase, оба бота, OWNER_TELEGRAM_ID, ENCRYPTION_KEY)
+- [x] Платформенный бот создан: @beautyspaceplatform_bot
+- [x] Код загружен на GitHub
+- [x] DEPLOYMENT.md — пошаговая инструкция готова
+- [ ] **Арендовать VPS на Beget** ← следующий шаг когда будут клиенты
 - [ ] Купить домен, привязать к VPS
-- [ ] Загрузить код на VPS (`git clone`)
-- [ ] Создать `.env` на VPS с реальными ключами
-- [ ] Настроить nginx (`nginx.conf` → заменить домен)
-- [ ] Получить SSL через Certbot
-- [ ] Запустить сервер: `pm2 start ecosystem.config.js --env production`
-- [ ] Зарегистрировать webhook платформенного бота: `npm run setup`
+- [ ] Загрузить код на VPS (`git clone`), создать `.env`
+- [ ] Настроить nginx, получить SSL (Certbot)
+- [ ] Запустить: `pm2 start ecosystem.config.js --env production`
+- [ ] Зарегистрировать webhook: `npm run setup`
+- [ ] Обновить `API_URL` в `tg-app/app.js` → реальный домен (Claude сделает сам)
+- [ ] Добавить мастера в таблицу masters через SQL
 - [ ] Указать webhook ЮKassa в личном кабинете
-- [ ] Задеплоить фронтенд на Vercel, указать реальный `API_URL`
-- [ ] Добавить первого мастера (Анна Козлова) в таблицу masters через SQL
 
 **Результат:** Платформа живёт на реальном домене. Боты работают. Клиенты могут записываться.
 
