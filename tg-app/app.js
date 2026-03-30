@@ -187,7 +187,7 @@ function renderHome() {
   el.innerHTML = `
     <!-- Hero мастера -->
     <div class="hero">
-      <div class="hero__avatar" onclick="adminTap()" id="admin-avatar">${MASTER.emoji}</div>
+      <div class="hero__avatar">${MASTER.emoji}</div>
       <div class="hero__name">${MASTER.name}</div>
       <div class="hero__title">${MASTER.title}</div>
       <div class="hero__stats">
@@ -418,6 +418,9 @@ function renderAbout() {
         💅 Записаться
       </button>
     </div>
+
+    <!-- Версия (секретный сброс для админа) -->
+    <div style="text-align:center;padding:8px 0 24px;color:var(--text-tertiary);font-size:11px" onclick="adminReset()">v1.0</div>
   `;
 }
 
@@ -959,21 +962,25 @@ function closeOffer(goToBot) {
   }
 }
 
-/* ── Секретный сброс для админа (5 тапов по аватару) ── */
-let adminTapCount = 0;
-let adminTapTimer = null;
-function adminTap() {
-  adminTapCount++;
-  clearTimeout(adminTapTimer);
-  adminTapTimer = setTimeout(() => { adminTapCount = 0; }, 3000);
-  if (adminTapCount >= 3) {
-    adminTapCount = 0;
-    localStorage.removeItem('onboarding_done');
-    localStorage.removeItem('offer_shown');
-    hapticNotify('success');
-    setTimeout(() => {
-      showOnboardingIfNeeded();
-    }, 300);
+/* ── Секретный сброс для админа (кнопка v1.0 в О мастере) ── */
+function adminReset() {
+  if (tg) {
+    tg.showPopup({
+      title: 'Сброс для теста',
+      message: 'Сбросить онбординг и показать модалку заново?',
+      buttons: [
+        { id: 'yes', type: 'default', text: 'Да, сбросить' },
+        { type: 'cancel', text: 'Отмена' }
+      ]
+    }, (btnId) => {
+      if (btnId === 'yes') {
+        localStorage.removeItem('onboarding_done');
+        localStorage.removeItem('offer_shown');
+        hapticNotify('success');
+        switchTab('home');
+        setTimeout(() => showOnboardingIfNeeded(), 400);
+      }
+    });
   }
 }
 
