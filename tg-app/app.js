@@ -965,14 +965,15 @@ let adminTapTimer = null;
 function adminTap() {
   adminTapCount++;
   clearTimeout(adminTapTimer);
-  adminTapTimer = setTimeout(() => { adminTapCount = 0; }, 2000);
-  if (adminTapCount >= 5) {
+  adminTapTimer = setTimeout(() => { adminTapCount = 0; }, 3000);
+  if (adminTapCount >= 3) {
     adminTapCount = 0;
     localStorage.removeItem('onboarding_done');
     localStorage.removeItem('offer_shown');
     hapticNotify('success');
-    if (tg) tg.showAlert('✅ Сброс выполнен — перезапусти приложение');
-    else alert('✅ Сброс выполнен — перезапусти приложение');
+    setTimeout(() => {
+      showOnboardingIfNeeded();
+    }, 300);
   }
 }
 
