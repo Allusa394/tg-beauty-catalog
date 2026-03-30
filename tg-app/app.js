@@ -187,7 +187,7 @@ function renderHome() {
   el.innerHTML = `
     <!-- Hero мастера -->
     <div class="hero">
-      <div class="hero__avatar">${MASTER.emoji}</div>
+      <div class="hero__avatar" onclick="adminTap()" id="admin-avatar">${MASTER.emoji}</div>
       <div class="hero__name">${MASTER.name}</div>
       <div class="hero__title">${MASTER.title}</div>
       <div class="hero__stats">
@@ -956,6 +956,23 @@ function closeOffer(goToBot) {
     const url = `https://t.me/${MASTER.botUsername}?start=from_app`;
     if (tg) tg.openTelegramLink(url);
     else window.open(url, '_blank');
+  }
+}
+
+/* ── Секретный сброс для админа (5 тапов по аватару) ── */
+let adminTapCount = 0;
+let adminTapTimer = null;
+function adminTap() {
+  adminTapCount++;
+  clearTimeout(adminTapTimer);
+  adminTapTimer = setTimeout(() => { adminTapCount = 0; }, 2000);
+  if (adminTapCount >= 5) {
+    adminTapCount = 0;
+    localStorage.removeItem('onboarding_done');
+    localStorage.removeItem('offer_shown');
+    hapticNotify('success');
+    if (tg) tg.showAlert('✅ Сброс выполнен — перезапусти приложение');
+    else alert('✅ Сброс выполнен — перезапусти приложение');
   }
 }
 
