@@ -14,7 +14,7 @@ const tg = window.Telegram?.WebApp;
 if (tg) {
   tg.ready();
   tg.expand(); // на весь экран
-  tg.enableClosingConfirmation(); // защита от случайного закрытия
+  // tg.enableClosingConfirmation(); // отключено — мешает закрытию
 }
 
 // Тактильный отклик
