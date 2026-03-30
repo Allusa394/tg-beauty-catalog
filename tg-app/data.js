@@ -18,6 +18,14 @@ const MASTER = {
   botUsername: 'anna_beauty_nail_bot', // username бота (без @)
   about: 'Работаю с 2019 года. Специализируюсь на маникюре, педикюре и дизайне ногтей. Использую только сертифицированные материалы ведущих брендов. Стерилизация инструментов обязательна. Предварительная запись обязательна.',
   portfolio: ['💅', '✨', '💎', '🌸', '💫', '🌺', '🦋', '🪷', '💗', '🌼', '🩷', '💜'],
+
+  // White-Label настройки (перезаписываются из API)
+  theme:            'blue',  // blue | rose | lavender | gold | dark
+  logoUrl:          null,    // URL логотипа или null
+  showBranding:     true,    // false = скрыть "Powered by" (только Pro)
+  masterTelegramId: null,    // telegram_id мастера (для определения владельца)
+  plan:             'free',  // free | pro
+  planExpiresAt:    null,    // ISO дата истечения подписки
 };
 
 /* ---------- КАТЕГОРИИ ---------- */

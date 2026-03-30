@@ -1,3 +1,5 @@
+// @ts-nocheck
+/* global MASTER, SERVICES, SCHEDULE, CATEGORIES, POPULAR_SERVICE_IDS, REVIEWS */
 // ============================================================
 // app.js — логика приложения
 // Разделы:
@@ -34,7 +36,123 @@ function applyTheme() {
 applyTheme();
 tg?.onEvent?.('themeChanged', applyTheme);
 
-/* ── 2. Состояние приложения ── */
+// Применить тему оформления мастера (White-Label)
+// Меняет CSS-переменные через класс на <body>
+function applyMasterTheme(theme) {
+  document.body.classList.remove('theme-rose', 'theme-lavender', 'theme-gold', 'theme-dark-force');
+  if (theme === 'dark') {
+    document.body.classList.add('dark', 'theme-dark-force');
+  } else if (theme && theme !== 'blue') {
+    document.body.classList.add(`theme-${theme}`);
+  }
+}
+
+/* ── 2. API ── */
+
+// URL сервера: локально — localhost, на проде — домен VPS
+// ⚠️ ПЕРЕД ДЕПЛОЕМ: замени строку ниже на реальный домен VPS
+// Пример: 'https://beauty.example.ru'
+const API_URL = window.location.hostname === 'localhost'
+  ? 'http://localhost:3000'
+  : 'https://ВАШ_ДОМЕН'; // ← заменить здесь
+
+// Определяем username бота — по нему находим мастера.
+// Клиент открывает приложение по ссылке вида: https://t.me/ИМЯ_БОТА
+// Telegram передаёт это имя в start_param или в URL-параметре ?bot=
+function getBotUsername() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('bot')) return params.get('bot');
+  if (tg?.initDataUnsafe?.start_param) return tg.initDataUnsafe.start_param;
+  return MASTER.botUsername || null; // запасной вариант — данные из data.js
+}
+
+// Проверяет — является ли текущий пользователь мастером этого приложения.
+// Используется для показа кнопки настроек.
+function isMaster() {
+  if (!MASTER.masterTelegramId) return false;
+  const userId = tg?.initDataUnsafe?.user?.id;
+  return !!userId && String(userId) === String(MASTER.masterTelegramId);
+}
+
+// Плашка "Powered by BeautyApp" для Free тарифа.
+// Скрывается у Pro мастеров когда show_branding = false.
+function poweredByBadge() {
+  if (!MASTER.showBranding) return '';
+  return `<div class="powered-by">Сделано на <strong>BeautyApp</strong> 💅</div>`;
+}
+
+// Загрузка данных мастера из API.
+// Перезаписывает MASTER, SERVICES, SCHEDULE реальными данными из Supabase.
+// Если API недоступен — работает с data.js (полезно при локальной разработке).
+async function loadFromAPI() {
+  const botUser = getBotUsername();
+  if (!botUser) return;
+
+  try {
+    const res = await fetch(`${API_URL}/api/app/${botUser}`);
+    if (!res.ok) return;
+
+    const data = await res.json();
+
+    // Обновляем данные мастера
+    Object.assign(MASTER, {
+      name:             data.master.name             || MASTER.name,
+      title:            data.master.title            || MASTER.title,
+      about:            data.master.about            || MASTER.about,
+      phone:            data.master.phone            || MASTER.phone,
+      address:          data.master.address          || MASTER.address,
+      addressLink:      data.master.address_link     || MASTER.addressLink,
+      botUsername:      botUser,
+      telegram:         `https://t.me/${botUser}`,
+      _id:              data.master.id,
+      // White-Label
+      theme:            data.master.theme            || 'blue',
+      logoUrl:          data.master.logo_url         || null,
+      showBranding:     data.master.show_branding    !== false,
+      masterTelegramId: data.master.telegram_id      || null,
+      plan:             data.master.plan             || 'free',
+      planExpiresAt:    data.master.plan_expires_at  || null,
+    });
+
+    // Применяем тему мастера
+    applyMasterTheme(MASTER.theme);
+
+    // Заменяем услуги если API вернул хотя бы одну
+    if (data.services?.length > 0) {
+      SERVICES.length = 0;
+      data.services.forEach(s => {
+        SERVICES.push({
+          id:        s.id,
+          category:  s.category,
+          emoji:     s.emoji     || '💅',
+          name:      s.name,
+          shortDesc: s.short_desc || '',
+          desc:      s.description || s.short_desc || '',
+          price:     s.price,
+          duration:  s.duration  || '',
+          rating:    4.9,
+          works:     [],
+        });
+      });
+      // Популярные — первые 4 из каталога
+      POPULAR_SERVICE_IDS.length = 0;
+      SERVICES.slice(0, 4).forEach(s => POPULAR_SERVICE_IDS.push(s.id));
+    }
+
+    // Обновляем расписание
+    if (data.schedule) {
+      SCHEDULE.workHours = data.schedule.work_hours || SCHEDULE.workHours;
+      SCHEDULE.daysOff   = data.schedule.days_off   || SCHEDULE.daysOff;
+    }
+
+    state.apiLoaded = true;
+    console.log(`[API] Загружен каталог мастера @${botUser}`);
+  } catch (e) {
+    console.log('[API] Недоступен, используем data.js');
+  }
+}
+
+/* ── 3. Состояние приложения ── */
 const state = {
   currentTab: 'home',       // активный таб
   screenStack: [],           // стек push-экранов
@@ -44,6 +162,9 @@ const state = {
   bookings: [],              // активные записи
   historyBookings: [],       // история
   activeCategory: 'all',     // активная категория в каталоге
+  slotsCache: {},            // кеш слотов { "2026-03-31": ["9:00","10:00",...] }
+  apiLoaded: false,          // true если данные загружены из API
+  masterServices: [],        // кеш услуг для панели мастера
 };
 
 // Загрузка записей из localStorage
@@ -186,8 +307,13 @@ function renderHome() {
 
   el.innerHTML = `
     <!-- Hero мастера -->
-    <div class="hero">
-      <div class="hero__avatar">${MASTER.emoji}</div>
+    <div class="hero" style="position:relative">
+      ${isMaster() ? '<button class="master-gear-btn" onclick="openMasterSettings()">⚙️</button>' : ''}
+      <div class="hero__avatar">
+        ${MASTER.logoUrl
+          ? `<img class="hero__logo-img" src="${MASTER.logoUrl}" alt="${MASTER.name}">`
+          : MASTER.emoji}
+      </div>
       <div class="hero__name">${MASTER.name}</div>
       <div class="hero__title">${MASTER.title}</div>
       <div class="hero__stats">
@@ -234,6 +360,8 @@ function renderHome() {
         💅 Записаться
       </button>
     </div>
+
+    ${poweredByBadge()}
   `;
 }
 
@@ -354,7 +482,11 @@ function renderAbout() {
 
   el.innerHTML = `
     <div class="master-hero">
-      <div class="master-avatar">${MASTER.emoji}</div>
+      <div class="master-avatar">
+        ${MASTER.logoUrl
+          ? `<img class="master-logo-img" src="${MASTER.logoUrl}" alt="${MASTER.name}">`
+          : MASTER.emoji}
+      </div>
       <div class="master-name">${MASTER.name}</div>
       <div class="master-title">${MASTER.title}</div>
       <div class="master-stats">
@@ -418,6 +550,17 @@ function renderAbout() {
         💅 Записаться
       </button>
     </div>
+
+    <!-- Кнопка настроек (только для мастера) -->
+    ${isMaster() ? `
+    <button class="settings-btn" onclick="openMasterSettings()">
+      <span class="settings-btn__icon">⚙️</span>
+      <span>Настройки мастера</span>
+      <span class="settings-btn__arrow">›</span>
+    </button>
+    ` : ''}
+
+    ${poweredByBadge()}
 
     <!-- Версия (секретный сброс для админа) -->
     <div style="text-align:center;padding:8px 0 24px;color:var(--text-tertiary);font-size:11px" onclick="adminReset()">v1.0</div>
@@ -556,27 +699,76 @@ function getNext14Days() {
   return result;
 }
 
-// Рендер слотов для выбранного дня
+// Рендер слотов для выбранного дня.
+// Если данные загружены из API — используем кеш slotsCache.
+// Иначе — статические данные из data.js.
 function renderSlots(dayIndex) {
-  const busyForDay = SCHEDULE.busySlots[dayIndex % 7] || [];
   const dates = getNext14Days();
   const dayDisabled = dates[dayIndex]?.disabled;
 
+  if (dayDisabled) {
+    return '<div style="grid-column:1/-1;text-align:center;color:var(--text-tertiary);padding:16px">Выходной день</div>';
+  }
+
+  // Если есть кеш из API — показываем только свободные слоты
+  const dateKey = toDateKey(dates[dayIndex].date);
+  if (state.slotsCache[dateKey]) {
+    const freeSlots = state.slotsCache[dateKey];
+    if (freeSlots.length === 0) {
+      return '<div style="grid-column:1/-1;text-align:center;color:var(--text-tertiary);padding:16px">Нет свободных слотов</div>';
+    }
+    return freeSlots.map(hour => {
+      const isSelected = state.selectedSlot === hour;
+      return `<div class="slot ${isSelected ? 'selected' : ''}" onclick="selectSlot('${hour}')">${hour}</div>`;
+    }).join('');
+  }
+
+  // Запасной вариант — data.js (пока API не загружен)
+  const busyForDay = SCHEDULE.busySlots[dayIndex % 7] || [];
   return SCHEDULE.workHours.map(hour => {
-    const isBusy = dayDisabled || busyForDay.includes(hour);
+    const isBusy = busyForDay.includes(hour);
     const isSelected = state.selectedSlot === hour;
     let cls = 'slot';
     if (isBusy) cls += ' busy';
     else if (isSelected) cls += ' selected';
-
     return `<div class="${cls}" onclick="${isBusy ? '' : `selectSlot('${hour}')`}">${hour}</div>`;
   }).join('');
 }
 
-// Количество свободных слотов
+// Количество свободных слотов (для счётчика "Осталось X окна")
 function countFreeSlots(dayIndex) {
+  const dates = getNext14Days();
+  const dateKey = toDateKey(dates[dayIndex].date);
+  if (state.slotsCache[dateKey]) return state.slotsCache[dateKey].length;
   const busy = SCHEDULE.busySlots[dayIndex % 7] || [];
   return SCHEDULE.workHours.length - busy.length;
+}
+
+// Преобразовать Date в строку YYYY-MM-DD для API
+function toDateKey(date) {
+  return date.toISOString().split('T')[0];
+}
+
+// Загрузить слоты для даты из API и обновить сетку
+async function fetchAndRenderSlots(dayIndex) {
+  const dates = getNext14Days();
+  const dateKey = toDateKey(dates[dayIndex].date);
+  const botUser = getBotUsername();
+
+  if (!botUser || state.slotsCache[dateKey] !== undefined) return;
+
+  try {
+    const res = await fetch(`${API_URL}/api/app/${botUser}/slots?date=${dateKey}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    state.slotsCache[dateKey] = data.slots || [];
+
+    // Обновляем только сетку слотов если экран всё ещё открыт
+    const grid = document.getElementById('slots-grid');
+    if (grid) grid.innerHTML = renderSlots(dayIndex);
+  } catch (e) {
+    console.log('[API] Не удалось загрузить слоты');
+  }
 }
 
 // Выбрать дату
@@ -585,8 +777,9 @@ function selectDate(index) {
   state.selectedDateIndex = index;
   state.selectedSlot = null;
   renderDatetimeScreen();
-  // Восстановить скролл
   document.getElementById('screen-datetime').scrollTop = 0;
+  // Загружаем слоты из API для выбранной даты
+  fetchAndRenderSlots(index);
 }
 
 // Выбрать слот
@@ -682,34 +875,75 @@ function formatDate(date) {
 }
 
 // ─── ПОДТВЕРЖДЕНИЕ ЗАПИСИ ───
-function confirmBooking() {
+// Если API подключён — отправляем запись на сервер.
+// Сервер сохранит в Supabase и уведомит мастера через бота.
+async function confirmBooking() {
   const btn = document.getElementById('confirm-btn');
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = 'Сохраняем...';
-  }
+  if (btn) { btn.disabled = true; btn.textContent = 'Отправляем...'; }
 
   const dates = getNext14Days();
   const dateObj = dates[state.selectedDateIndex];
   const dateStr = formatDate(dateObj.date);
+  const dateKey = toDateKey(dateObj.date);
 
-  // Сохранить запись
   const booking = {
     service: state.selectedService.name,
-    emoji: state.selectedService.emoji,
-    date: dateStr,
-    slot: state.selectedSlot,
-    price: state.selectedService.price,
+    emoji:   state.selectedService.emoji,
+    date:    dateStr,
+    slot:    state.selectedSlot,
+    price:   state.selectedService.price,
   };
+
+  // Если API загружен — создаём запись через сервер
+  if (state.apiLoaded && MASTER._id) {
+    try {
+      const clientUser = tg?.initDataUnsafe?.user;
+      const res = await fetch(`${API_URL}/api/bookings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          master_id:  MASTER._id,
+          service_id: state.selectedService.id,
+          date:       dateKey,
+          time_slot:  state.selectedSlot,
+          client: {
+            telegram_id: clientUser?.id       || 0,
+            first_name:  clientUser?.first_name|| '',
+            last_name:   clientUser?.last_name || '',
+            username:    clientUser?.username  || '',
+          }
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        if (btn) { btn.disabled = false; btn.textContent = '✅ Подтвердить запись'; }
+        tg?.showAlert?.(err.error || 'Не удалось создать запись. Попробуй ещё раз.');
+        return;
+      }
+
+      // Сохраняем ID записи с сервера — нужен для отмены через API
+      const serverData = await res.json();
+      if (serverData.booking?.id) booking._apiId = serverData.booking.id;
+
+      // Убрать занятый слот из кеша
+      if (state.slotsCache[dateKey]) {
+        state.slotsCache[dateKey] = state.slotsCache[dateKey].filter(s => s !== state.selectedSlot);
+      }
+
+    } catch (e) {
+      // Если сервер недоступен — продолжаем локально
+      console.log('[API] Запись сохранена локально');
+    }
+  }
+
+  // Сохраняем в localStorage (для экрана "Мои записи")
   state.bookings.unshift(booking);
   saveBookings();
-
   hapticNotify('success');
 
-  // Показать экран успеха
   setTimeout(() => {
     renderSuccessScreen(booking);
-    // Закрыть все предыдущие push-экраны и показать success
     clearScreenStack();
     pushScreen('screen-success');
   }, 400);
@@ -816,7 +1050,20 @@ function cancelBooking(idx) {
 
 function doCancel(idx) {
   const removed = state.bookings.splice(idx, 1)[0];
-  if (removed) state.historyBookings.unshift(removed);
+  if (removed) {
+    state.historyBookings.unshift(removed);
+    // Уведомить сервер об отмене (уведомит мастера через бот)
+    if (removed._apiId && state.apiLoaded) {
+      const userId = tg?.initDataUnsafe?.user?.id;
+      if (userId) {
+        fetch(`${API_URL}/api/client/bookings/${removed._apiId}`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telegram_id: userId })
+        }).catch(() => {});
+      }
+    }
+  }
   saveBookings();
   hapticNotify('warning');
   renderBookings();
@@ -845,8 +1092,533 @@ function repeatBooking(idx) {
   }
 }
 
+/* ── Панель настроек мастера ── */
+
+function openMasterSettings() {
+  renderMasterSettings();
+  pushScreen('screen-settings');
+}
+
+function renderMasterSettings() {
+  const themes = [
+    { id: 'blue',     label: 'Синяя',    color: '#2AABEE' },
+    { id: 'rose',     label: 'Роза',     color: '#FF4F9A' },
+    { id: 'lavender', label: 'Лаванда',  color: '#9B72CF' },
+    { id: 'gold',     label: 'Золото',   color: '#C8963E' },
+    { id: 'dark',     label: 'Тёмная',   color: '#3A3A3C' },
+  ];
+
+  const isPro = MASTER.plan === 'pro';
+  const expiryDate = MASTER.planExpiresAt ? MASTER.planExpiresAt.split('T')[0] : null;
+
+  const el = document.getElementById('screen-settings');
+  el.innerHTML = `
+    <div class="screen-header">
+      <button class="screen-header__back" onclick="goBack()">‹</button>
+      <div class="screen-header__title">Настройки мастера</div>
+    </div>
+
+    <!-- Тариф -->
+    <div class="section"><div class="section-title">Тариф</div></div>
+    <div class="plan-card ${isPro ? 'plan-card--pro' : ''}">
+      <div class="plan-card__icon">${isPro ? '⭐' : '🆓'}</div>
+      <div class="plan-card__info">
+        <div class="plan-card__name">${isPro ? 'Pro' : 'Free'}</div>
+        ${isPro && expiryDate
+          ? `<div class="plan-card__expires">Действует до ${expiryDate}</div>`
+          : '<div class="plan-card__limit">До 5 активных услуг</div>'}
+      </div>
+      <span class="plan-card__badge ${isPro ? 'plan-card__badge--pro' : ''}">${isPro ? 'Pro' : 'Free'}</span>
+    </div>
+
+    ${!isPro ? `
+    <!-- Кнопки перехода на Pro -->
+    <div class="upgrade-row">
+      <button class="upgrade-btn" onclick="startUpgrade(1)">
+        <div class="upgrade-btn__months">1 месяц</div>
+        <div class="upgrade-btn__price">299 ₽</div>
+      </button>
+      <button class="upgrade-btn" onclick="startUpgrade(3)">
+        <div class="upgrade-btn__months">3 месяца</div>
+        <div class="upgrade-btn__price">799 ₽</div>
+      </button>
+      <button class="upgrade-btn upgrade-btn--best" onclick="startUpgrade(12)">
+        <div class="upgrade-btn__best">Выгоднее</div>
+        <div class="upgrade-btn__months">12 мес.</div>
+        <div class="upgrade-btn__price">2499 ₽</div>
+      </button>
+    </div>
+    ` : ''}
+
+    <!-- Тема оформления -->
+    <div class="section"><div class="section-title">Тема оформления</div></div>
+    <div class="theme-picker">
+      ${themes.map(t => `
+        <button class="theme-option ${MASTER.theme === t.id ? 'active' : ''}"
+          onclick="selectTheme('${t.id}')">
+          <div class="theme-option__dot" style="background:${t.color}"></div>
+          <div class="theme-option__label">${t.label}</div>
+          ${!isPro && t.id !== 'blue' ? '<div class="theme-option__lock">Pro</div>' : ''}
+        </button>
+      `).join('')}
+    </div>
+
+    <!-- Управление -->
+    <div class="section"><div class="section-title">Управление</div></div>
+    <div style="margin:0 16px 24px;background:var(--bg-card);border-radius:var(--radius-card);box-shadow:var(--shadow-card);overflow:hidden">
+      <button class="settings-btn" style="border-bottom:1px solid var(--border)" onclick="openMasterProfile()">
+        <span class="settings-btn__icon">👤</span>
+        <span>Профиль мастера</span>
+        <span class="settings-btn__arrow">›</span>
+      </button>
+      <button class="settings-btn" onclick="openMasterServices()">
+        <span class="settings-btn__icon">💅</span>
+        <span>Услуги</span>
+        <span class="settings-btn__arrow">›</span>
+      </button>
+    </div>
+
+    <div class="spacer-bottom"></div>
+  `;
+  el.scrollTop = 0;
+}
+
+// Выбрать тему — Pro-темы заблокированы для Free
+function selectTheme(themeId) {
+  if (themeId !== 'blue' && MASTER.plan !== 'pro') {
+    hapticNotify('error');
+    tg?.showAlert?.('Выбор темы доступен только на тарифе Pro 💜');
+    return;
+  }
+  haptic('medium');
+  MASTER.theme = themeId;
+  applyMasterTheme(themeId);
+  saveThemeToAPI(themeId);
+  renderMasterSettings(); // обновить выделение активной темы
+}
+
+// Сохранить тему на сервере
+async function saveThemeToAPI(theme) {
+  if (!MASTER._id) return;
+  const userId = tg?.initDataUnsafe?.user?.id;
+  if (!userId) return;
+  try {
+    await fetch(`${API_URL}/api/master/me`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-telegram-id': String(userId)
+      },
+      body: JSON.stringify({ theme })
+    });
+  } catch (e) {
+    console.log('[API] Тема не сохранена');
+  }
+}
+
+// Начать оплату Pro подписки
+async function startUpgrade(months) {
+  haptic('medium');
+  if (!MASTER._id) return;
+
+  try {
+    const res = await fetch(`${API_URL}/api/payment/invoice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ master_id: MASTER._id, months })
+    });
+
+    if (!res.ok) throw new Error('error');
+    const data = await res.json();
+
+    // Открываем страницу оплаты ЮKassa
+    if (tg) {
+      tg.openLink(data.confirmation_url);
+    } else {
+      window.open(data.confirmation_url, '_blank');
+    }
+  } catch (e) {
+    tg?.showAlert?.('Не удалось создать счёт. Попробуйте позже.');
+  }
+}
+
+/* ── Редактирование профиля мастера ── */
+
+function openMasterProfile() {
+  renderMasterProfile();
+  pushScreen('screen-master-profile');
+}
+
+function renderMasterProfile() {
+  const el = document.getElementById('screen-master-profile');
+  el.innerHTML = `
+    <div class="screen-header">
+      <button class="screen-header__back" onclick="goBack()">‹</button>
+      <div class="screen-header__title">Профиль мастера</div>
+    </div>
+
+    <div class="form-section" style="padding-top:20px">
+
+      <div class="form-group">
+        <label class="form-label">Имя</label>
+        <input class="form-input" id="profile-name" type="text"
+          value="${MASTER.name}" placeholder="Анна Козлова">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Специализация</label>
+        <input class="form-input" id="profile-title" type="text"
+          value="${MASTER.title || ''}" placeholder="Мастер маникюра и педикюра">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">О себе</label>
+        <textarea class="form-textarea" id="profile-about"
+          placeholder="Расскажи о себе, опыте и подходе к работе...">${MASTER.about || ''}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Телефон</label>
+        <input class="form-input" id="profile-phone" type="tel"
+          value="${MASTER.phone || ''}" placeholder="+7 900 123-45-67">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Адрес студии</label>
+        <input class="form-input" id="profile-address" type="text"
+          value="${MASTER.address || ''}" placeholder="г. Москва, ул. Садовая, 12">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Логотип (URL изображения)</label>
+        <input class="form-input" id="profile-logo" type="url"
+          value="${MASTER.logoUrl || ''}" placeholder="https://...">
+        <div style="font-size:12px;color:var(--text-tertiary);margin-top:4px">
+          Загрузи фото в imgbb.com или другой хостинг и вставь ссылку
+        </div>
+      </div>
+
+    </div>
+
+    <div style="padding:0 16px 32px">
+      <button class="main-btn" id="save-profile-btn" onclick="saveMasterProfile()">
+        Сохранить
+      </button>
+    </div>
+  `;
+  el.scrollTop = 0;
+}
+
+async function saveMasterProfile() {
+  const userId = tg?.initDataUnsafe?.user?.id;
+  if (!userId) return;
+
+  const updates = {
+    name:         document.getElementById('profile-name')?.value.trim(),
+    title:        document.getElementById('profile-title')?.value.trim(),
+    about:        document.getElementById('profile-about')?.value.trim(),
+    phone:        document.getElementById('profile-phone')?.value.trim(),
+    address:      document.getElementById('profile-address')?.value.trim(),
+    logo_url:     document.getElementById('profile-logo')?.value.trim() || null,
+  };
+
+  const btn = document.getElementById('save-profile-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Сохраняем...'; }
+
+  try {
+    const res = await fetch(`${API_URL}/api/master/me`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-telegram-id': String(userId)
+      },
+      body: JSON.stringify(updates)
+    });
+
+    if (!res.ok) throw new Error();
+
+    // Обновить локальные данные
+    if (updates.name)     MASTER.name     = updates.name;
+    if (updates.title)    MASTER.title    = updates.title;
+    if (updates.about)    MASTER.about    = updates.about;
+    if (updates.phone)    MASTER.phone    = updates.phone;
+    if (updates.address)  MASTER.address  = updates.address;
+    MASTER.logoUrl = updates.logo_url;
+
+    hapticNotify('success');
+    goBack();
+  } catch {
+    hapticNotify('error');
+    tg?.showAlert?.('Не удалось сохранить. Попробуйте ещё раз.');
+    if (btn) { btn.disabled = false; btn.textContent = 'Сохранить'; }
+  }
+}
+
+/* ── Управление услугами мастера ── */
+
+async function openMasterServices() {
+  const el = document.getElementById('screen-master-services');
+  el.innerHTML = `
+    <div class="screen-header">
+      <button class="screen-header__back" onclick="goBack()">‹</button>
+      <div class="screen-header__title">Услуги</div>
+    </div>
+    <div style="padding:32px;text-align:center;color:var(--text-tertiary)">Загружаем...</div>
+  `;
+  pushScreen('screen-master-services');
+
+  const services = await fetchMasterServices();
+  renderMasterServicesList(services);
+}
+
+async function fetchMasterServices() {
+  const userId = tg?.initDataUnsafe?.user?.id;
+  if (!userId) return [];
+  try {
+    const res = await fetch(`${API_URL}/api/master/services`, {
+      headers: { 'x-telegram-id': String(userId) }
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    state.masterServices = data;
+    return data;
+  } catch { return []; }
+}
+
+function renderMasterServicesList(services) {
+  const el = document.getElementById('screen-master-services');
+  const isPro  = MASTER.plan === 'pro';
+  const active = services.filter(s => s.is_active && !s.is_locked).length;
+  const atLimit = !isPro && active >= 5;
+
+  el.innerHTML = `
+    <div class="screen-header">
+      <button class="screen-header__back" onclick="goBack()">‹</button>
+      <div class="screen-header__title">Услуги</div>
+    </div>
+
+    ${!isPro ? `
+    <div style="margin:12px 16px 0;padding:10px 14px;background:var(--accent-soft);border-radius:10px;font-size:13px;color:var(--accent);font-weight:600">
+      ${active} из 5 активных услуг ${atLimit ? '— лимит достигнут' : ''}
+    </div>
+    ` : ''}
+
+    <div class="section"><div class="section-title">Все услуги</div></div>
+
+    <div class="master-services-list">
+      ${services.length === 0
+        ? '<div style="padding:24px;text-align:center;color:var(--text-tertiary)">Услуг пока нет</div>'
+        : services.map(s => `
+          <div class="master-service-row" onclick="openEditService(${JSON.stringify(s).replace(/"/g, '&quot;')})">
+            <div class="master-service-row__emoji">${s.emoji || '💅'}</div>
+            <div class="master-service-row__info">
+              <div class="master-service-row__name">${s.name}</div>
+              <div class="master-service-row__meta">${s.price.toLocaleString('ru')} ₽ · ${s.duration || '—'}</div>
+            </div>
+            <div class="svc-status ${s.is_locked ? 'svc-status--locked' : s.is_active ? 'svc-status--active' : 'svc-status--inactive'}"></div>
+            <span style="font-size:20px;color:var(--text-tertiary)">›</span>
+          </div>
+        `).join('')}
+      <button class="add-service-btn" onclick="openNewService()" ${atLimit ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''}>
+        ＋ Добавить услугу ${atLimit ? '(лимит Free)' : ''}
+      </button>
+    </div>
+
+    <div class="spacer-bottom"></div>
+  `;
+}
+
+function openNewService() {
+  renderServiceEditForm(null);
+  pushScreen('screen-master-service-edit');
+}
+
+function openEditService(service) {
+  renderServiceEditForm(service);
+  pushScreen('screen-master-service-edit');
+}
+
+function renderServiceEditForm(service) {
+  const isNew = !service;
+  const el = document.getElementById('screen-master-service-edit');
+
+  el.innerHTML = `
+    <div class="screen-header">
+      <button class="screen-header__back" onclick="goBack()">‹</button>
+      <div class="screen-header__title">${isNew ? 'Новая услуга' : 'Редактировать'}</div>
+    </div>
+
+    <div class="form-section" style="padding-top:20px">
+
+      <div style="display:flex;gap:12px">
+        <div class="form-group" style="width:72px;flex-shrink:0">
+          <label class="form-label">Эмодзи</label>
+          <input class="form-input" id="svc-emoji" type="text" maxlength="2"
+            value="${service?.emoji || '💅'}" style="text-align:center;font-size:22px;padding:10px 8px">
+        </div>
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Название *</label>
+          <input class="form-input" id="svc-name" type="text"
+            value="${service?.name || ''}" placeholder="Маникюр гель-лак">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Категория</label>
+        <select class="form-select" id="svc-category">
+          ${[
+            ['mani',   'Маникюр'],
+            ['pedi',   'Педикюр'],
+            ['brows',  'Брови'],
+            ['lashes', 'Ресницы'],
+            ['other',  'Другое'],
+          ].map(([val, label]) =>
+            `<option value="${val}" ${service?.category === val ? 'selected' : ''}>${label}</option>`
+          ).join('')}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Краткое описание</label>
+        <input class="form-input" id="svc-short-desc" type="text"
+          value="${service?.short_desc || ''}" placeholder="Одна строка для каталога">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Полное описание</label>
+        <textarea class="form-textarea" id="svc-description"
+          placeholder="Подробно об услуге...">${service?.description || ''}</textarea>
+      </div>
+
+      <div style="display:flex;gap:12px">
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Цена, ₽</label>
+          <input class="form-input" id="svc-price" type="number" min="0"
+            value="${service?.price || ''}" placeholder="2500">
+        </div>
+        <div class="form-group" style="flex:1">
+          <label class="form-label">Длительность</label>
+          <input class="form-input" id="svc-duration" type="text"
+            value="${service?.duration || ''}" placeholder="1 ч 30 мин">
+        </div>
+      </div>
+
+    </div>
+
+    <div class="form-card">
+      <div class="form-toggle-row">
+        <div>
+          <div class="form-toggle-label">Активна</div>
+          <div class="form-toggle-sub">Видна клиентам в каталоге</div>
+        </div>
+        <button class="toggle ${service?.is_active !== false ? 'on' : ''}" id="svc-active"
+          onclick="this.classList.toggle('on')"></button>
+      </div>
+    </div>
+
+    <div style="padding:8px 16px 12px">
+      <button class="main-btn" id="save-service-btn" onclick="saveService('${service?.id || ''}')">
+        ${isNew ? 'Создать услугу' : 'Сохранить'}
+      </button>
+    </div>
+
+    ${!isNew ? `
+    <div style="padding:0 16px 32px">
+      <button class="danger-btn" onclick="deleteService('${service.id}')">
+        Удалить услугу
+      </button>
+    </div>
+    ` : '<div style="height:24px"></div>'}
+  `;
+  el.scrollTop = 0;
+}
+
+async function saveService(serviceId) {
+  const userId = tg?.initDataUnsafe?.user?.id;
+  if (!userId) return;
+
+  const name = document.getElementById('svc-name')?.value.trim();
+  if (!name) {
+    tg?.showAlert?.('Укажи название услуги');
+    return;
+  }
+
+  const data = {
+    emoji:       document.getElementById('svc-emoji')?.value.trim()   || '💅',
+    name,
+    category:    document.getElementById('svc-category')?.value       || 'other',
+    short_desc:  document.getElementById('svc-short-desc')?.value.trim(),
+    description: document.getElementById('svc-description')?.value.trim(),
+    price:       parseInt(document.getElementById('svc-price')?.value) || 0,
+    duration:    document.getElementById('svc-duration')?.value.trim(),
+    is_active:   document.getElementById('svc-active')?.classList.contains('on'),
+  };
+
+  const btn = document.getElementById('save-service-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Сохраняем...'; }
+
+  const isNew = !serviceId;
+  const url = isNew
+    ? `${API_URL}/api/master/services`
+    : `${API_URL}/api/master/services/${serviceId}`;
+
+  try {
+    const res = await fetch(url, {
+      method: isNew ? 'POST' : 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-telegram-id': String(userId)
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Ошибка');
+    }
+
+    hapticNotify('success');
+    goBack();
+    // Обновить список после возврата
+    const updated = await fetchMasterServices();
+    renderMasterServicesList(updated);
+  } catch (e) {
+    hapticNotify('error');
+    tg?.showAlert?.(e.message || 'Не удалось сохранить. Попробуйте ещё раз.');
+    if (btn) { btn.disabled = false; btn.textContent = isNew ? 'Создать услугу' : 'Сохранить'; }
+  }
+}
+
+function deleteService(serviceId) {
+  haptic('medium');
+  tg?.showPopup?.({
+    title: 'Удалить услугу?',
+    message: 'Клиенты больше не смогут на неё записаться. Отменить нельзя.',
+    buttons: [
+      { id: 'yes', type: 'destructive', text: 'Удалить' },
+      { type: 'cancel', text: 'Отмена' }
+    ]
+  }, async (btnId) => {
+    if (btnId !== 'yes') return;
+    const userId = tg?.initDataUnsafe?.user?.id;
+    if (!userId) return;
+    try {
+      await fetch(`${API_URL}/api/master/services/${serviceId}`, {
+        method: 'DELETE',
+        headers: { 'x-telegram-id': String(userId) }
+      });
+      hapticNotify('success');
+      goBack();
+      const updated = await fetchMasterServices();
+      renderMasterServicesList(updated);
+    } catch {
+      tg?.showAlert?.('Не удалось удалить. Попробуйте ещё раз.');
+    }
+  });
+}
+
 /* ── 5. Инициализация ── */
-function init() {
+async function init() {
   loadBookings();
 
   // Настройка таб-бара
@@ -861,8 +1633,35 @@ function init() {
     });
   }
 
-  // Начальный рендер
+  // Загружаем данные мастера из API ДО рендера
+  // Так фронтенд сразу покажет реальные данные, а не data.js
+  await loadFromAPI();
+
+  // Обновляем сплэш с реальным именем мастера
+  const splashName = document.getElementById('splash-name');
+  const splashSub  = document.getElementById('splash-sub');
+  if (splashName) splashName.textContent = MASTER.name;
+  if (splashSub)  splashSub.textContent  = MASTER.title;
+
+  // Обновляем текст онбординга под конкретного мастера
+  const onboardingSub = document.getElementById('onboarding-subtitle');
+  if (onboardingSub) {
+    onboardingSub.textContent = `Рада видеть тебя у ${MASTER.name} — ${MASTER.title.toLowerCase()}`;
+  }
+
+  // Если пришли со страницы оплаты — показываем подтверждение
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('payment') === 'success') {
+    setTimeout(() => {
+      hapticNotify('success');
+      tg?.showAlert?.('🎉 Оплата прошла! Pro подписка активирована. Спасибо!');
+    }, 1500);
+  }
+
+  // Начальный рендер (уже с данными из API если они загружены)
   renderTab('home');
+  // Сразу загружаем слоты на сегодня
+  fetchAndRenderSlots(0);
 
   // Показать приложение, скрыть splash
   setTimeout(() => {

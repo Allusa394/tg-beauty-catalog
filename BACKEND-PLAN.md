@@ -1,493 +1,235 @@
-# BACKEND-PLAN.md — Архитектура бэкенда платформы
+# BACKEND-PLAN — tg-beauty-catalog
 
-**Концепция:** White-Label SaaS платформа для бьюти-мастеров.
-Каждый мастер получает своё приложение и своего бота, платформа управляет всем из одного бэкенда.
-
----
-
-## Ответы, на которых строится план
-
-| Вопрос | Ответ |
-|---|---|
-| Регистрация мастера | Через Telegram-бот платформы |
-| Панель управления | Мини-апп в режиме владельца |
-| Уведомления клиентам | Личный бот каждого мастера |
-| Загрузка фото | Отправляет фото боту в Telegram |
-| Оплата подписки | TBD — нужно решить отдельно (см. plan.md) |
-| Подтверждение записи | Мастер вручную (Принять / Отклонить) |
-| Технология бэкенда | Supabase (БД) + VPS на Beget (сервер ботов) |
+White-Label SaaS платформа для бьюти-мастеров.
+Каждый мастер получает своё мини-приложение и своего бота. Платформа управляет всем из одного бэкенда.
 
 ---
 
-## Стек технологий — ОКОНЧАТЕЛЬНЫЙ
+## Стек
 
-> ⚠️ Исправлено: убрано противоречие между Vercel Functions и Beget VPS.
-> Vercel — ТОЛЬКО статический фронтенд. Весь бэкенд — на Beget VPS.
+| Компонент | Что используем | Где живёт |
+|-----------|---------------|-----------|
+| Фронтенд | HTML / CSS / JS | Vercel |
+| Сервер + боты | Node.js + Express | Beget VPS |
+| База данных | Supabase (PostgreSQL) | Supabase |
+| Хранение фото | Cloudinary | Cloudinary |
+| Напоминания | node-cron | VPS |
+| Оплата | ЮKassa | — |
 
-| Компонент | Технология | Где живёт |
-|---|---|---|
-| Фронтенд (мини-апп) | HTML/CSS/JS (уже готов) | Vercel — автодеплой из GitHub |
-| Сервер API + боты | Node.js (Express) | Beget VPS |
-| База данных | Supabase (PostgreSQL) | Supabase cloud |
-| Хранение фото | Cloudinary | Cloudinary cloud |
-| Планировщик напоминаний | node-cron на том же VPS | Beget VPS |
-
-### Как фронтенд общается с бэкендом
-```
-Vercel (tg-app/) → HTTPS запросы → Beget VPS (api.yourdomain.ru)
-                                          ↓
-                                    Supabase PostgreSQL
-```
+Схема: Фронтенд → VPS API → Supabase
 
 ---
 
-## База данных — таблицы
+## Тарифы
 
-> ⚠️ Исправлено: убран `services_count` (денормализация = рассинхронизация).
-> Количество услуг считается через COUNT запрос.
-> Добавлен ON DELETE CASCADE на все foreign keys.
+| | Free | Pro |
+|--|------|-----|
+| Цена | Бесплатно | Подписка (месяц / год) |
+| Активных услуг | До 5 | Неограниченно |
+| Темы | Только Роза | Роза, Лаванда, Золото, Тёмная |
+| Свой логотип | — | Да |
+| Плашка "Powered by" | Показывается | Скрыта |
+| Записи и клиенты | Неограниченно | Неограниченно |
 
-### `masters` — мастера платформы
-```sql
-id              UUID PRIMARY KEY DEFAULT gen_random_uuid()
-telegram_id     BIGINT UNIQUE NOT NULL   -- Telegram user ID мастера
-bot_token       TEXT UNIQUE NOT NULL     -- Токен личного бота (зашифрован AES-256)
-bot_username    TEXT UNIQUE NOT NULL     -- @username бота
+---
 
--- Профиль
-name            TEXT NOT NULL
-title           TEXT
-about           TEXT
-phone           TEXT
-address         TEXT
-address_link    TEXT
+## База данных
 
--- Подписка
-plan            TEXT DEFAULT 'free'      -- 'free' | 'pro'
-plan_expires_at TIMESTAMPTZ              -- NULL = free навсегда
+### Таблицы
 
--- White-Label (только plan=pro)
-theme           TEXT DEFAULT 'rose'      -- 'rose'|'lavender'|'gold'|'dark'
-logo_url        TEXT
-show_branding   BOOLEAN DEFAULT true     -- плашка "Powered by платформой"
+| Таблица | Что хранит |
+|---------|-----------|
+| masters | Мастера платформы — профиль, бот, тариф |
+| services | Услуги каждого мастера |
+| portfolio | Фото работ мастера |
+| clients | Клиенты платформы (общая книга) |
+| bookings | Записи клиентов к мастерам |
+| schedule | Расписание мастера |
 
--- Состояние онбординга (для бота платформы)
-onboarding_step TEXT DEFAULT 'start'     -- 'start'|'name'|'title'|'phone'|'token'|'done'
+### Ключевые поля
 
-created_at      TIMESTAMPTZ DEFAULT NOW()
-updated_at      TIMESTAMPTZ DEFAULT NOW()
-```
+**masters:** id, telegram_id, bot_token (AES-256), bot_username, name, title, about, phone, address, plan, plan_expires_at, services_locked, theme, logo_url, show_branding, onboarding_step
 
-### `services` — услуги каждого мастера
-```sql
-id          UUID PRIMARY KEY DEFAULT gen_random_uuid()
-master_id   UUID NOT NULL REFERENCES masters(id) ON DELETE CASCADE
-category    TEXT NOT NULL              -- 'mani'|'pedi'|'brows'|'lashes'
-name        TEXT NOT NULL
-short_desc  TEXT
-description TEXT
-price       INTEGER NOT NULL
-duration    TEXT
-emoji       TEXT DEFAULT '💅'
-is_active   BOOLEAN DEFAULT true
-order_index INTEGER DEFAULT 0
-created_at  TIMESTAMPTZ DEFAULT NOW()
-```
+**services:** id, master_id, category, name, price, duration, emoji, is_active, is_locked, order_index
 
-> Лимит 5 услуг для free тарифа — проверяется через:
-> ```sql
-> SELECT COUNT(*) FROM services WHERE master_id = $1 AND is_active = true
-> ```
-> Не полагаемся на денормализованный счётчик.
+**bookings:** id, master_id, client_id, service_id, date, time_slot, status (pending/confirmed/cancelled/expired), service_name, price, reminded_24h, reminded_2h, expires_at
 
-### `portfolio` — фото работ мастера
-```sql
-id               UUID PRIMARY KEY DEFAULT gen_random_uuid()
-master_id        UUID NOT NULL REFERENCES masters(id) ON DELETE CASCADE
-cloudinary_url   TEXT NOT NULL
-telegram_file_id TEXT
-caption          TEXT
-created_at       TIMESTAMPTZ DEFAULT NOW()
-```
-
-### `clients` — клиенты (общая таблица)
-```sql
-id          UUID PRIMARY KEY DEFAULT gen_random_uuid()
-telegram_id BIGINT UNIQUE NOT NULL
-first_name  TEXT
-username    TEXT
-phone       TEXT
-created_at  TIMESTAMPTZ DEFAULT NOW()
-```
-
-### `bookings` — записи клиентов
-```sql
-id          UUID PRIMARY KEY DEFAULT gen_random_uuid()
-master_id   UUID NOT NULL REFERENCES masters(id) ON DELETE CASCADE
-client_id   UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE
-service_id  UUID REFERENCES services(id) ON DELETE SET NULL
-
-date        DATE NOT NULL
-time_slot   TEXT NOT NULL              -- "14:00"
-status      TEXT DEFAULT 'pending'     -- 'pending'|'confirmed'|'cancelled'|'expired'
-
--- Кеш (на случай удаления услуги)
-service_name TEXT NOT NULL
-price        INTEGER NOT NULL
-
--- Напоминания
-reminded_24h BOOLEAN DEFAULT false
-reminded_2h  BOOLEAN DEFAULT false
-
--- Таймаут: если мастер не ответил за 2 часа → статус expired
-expires_at   TIMESTAMPTZ NOT NULL      -- created_at + 2 часа
-
-created_at   TIMESTAMPTZ DEFAULT NOW()
-updated_at   TIMESTAMPTZ DEFAULT NOW()
-```
-
-> ⚠️ Исправлено: добавлен `expires_at` и статус `expired`.
-> Cron каждые 15 минут проверяет pending записи у которых expires_at < NOW()
-> и переводит их в `expired`. Слот освобождается для других клиентов.
-
-### `schedule` — рабочее расписание мастера
-```sql
-id           UUID PRIMARY KEY DEFAULT gen_random_uuid()
-master_id    UUID UNIQUE NOT NULL REFERENCES masters(id) ON DELETE CASCADE
-work_hours   JSONB DEFAULT '["9:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00"]'
-days_off     JSONB DEFAULT '[0]'       -- [0] = воскресенье
-manual_busy  JSONB DEFAULT '{}'        -- {"2026-04-05": ["14:00","15:00"]}
-```
-
-> UNIQUE на master_id — у одного мастера ровно одна запись расписания.
+**schedule:** id, master_id, work_hours (JSONB), days_off (JSONB), manual_busy (JSONB)
 
 ---
 
 ## Безопасность
 
-> ⚠️ Исправлено: добавлен раздел RLS и уточнено хранение ключей.
-
-### Проверка initData (каждый запрос от мини-аппа)
-```js
-// Telegram подписывает initData через HMAC-SHA256
-// Бэкенд проверяет подпись перед любым действием
-const secretKey = crypto.createHmac('sha256', 'WebAppData').update(BOT_TOKEN).digest();
-const checkHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
-if (checkHash !== hash) return res.status(401).json({ error: 'Invalid initData' });
-```
-
-### Шифрование токенов ботов
-- Токены мастеров шифруются AES-256-GCM перед записью в БД
-- Ключ шифрования хранится в **env-переменной на VPS** (`ENCRYPTION_KEY`)
-- Ключ никогда не попадает в код, в GitHub, в Supabase
-
-### Row Level Security (RLS) в Supabase
-```sql
--- Мастер видит только свои данные
-ALTER TABLE services ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "master_own_services" ON services
-  USING (master_id = (SELECT id FROM masters WHERE telegram_id = current_user_telegram_id()));
-
--- Аналогично для portfolio, bookings, schedule
-```
-> RLS включить на таблицы: services, portfolio, bookings, schedule.
-> Таблица clients — только через серверный код, не через прямой доступ клиента.
-
-### Rate Limiting на VPS
-- Максимум 10 запросов в секунду с одного IP (express-rate-limit)
-- Максимум 5 записей в день от одного клиента к одному мастеру
+| Что защищаем | Как |
+|-------------|-----|
+| Запросы от мини-аппа | HMAC-SHA256 проверка initData от Telegram |
+| Токены ботов | AES-256-GCM шифрование, ключ только в .env на VPS |
+| База данных | RLS включён, anon ключ запрещён, всё через service_role |
+| Webhook ЮKassa | Проверка HMAC-SHA256 подписи каждого запроса |
+| Supabase → VPS | Подпись через VPS_NOTIFY_SECRET |
+| Rate Limiting | 10 запросов/сек с IP, 5 записей/день к одному мастеру |
 
 ---
 
-## API — все эндпоинты на Beget VPS
+## API-эндпоинты
 
-> ⚠️ Исправлено: убраны "Vercel Functions". Все API на VPS.
-> Базовый URL: `https://api.yourdomain.ru`
-
-### Публичные (для мини-аппа клиента)
 ```
-GET  /api/app/:botUsername              → данные мастера + услуги + расписание
-GET  /api/app/:botUsername/slots?date=  → свободные слоты на конкретную дату
-POST /api/bookings                      → создать запись (initData обязателен)
-```
+GET    /api/app/:botUsername           — Данные мастера, услуги, расписание
+GET    /api/app/:botUsername/slots     — Свободные слоты (?date=)
+POST   /api/bookings                   — Создать запись
 
-### Клиент (авторизован через initData)
-```
-GET    /api/client/bookings             → свои записи (активные + история)
-DELETE /api/client/bookings/:id         → отменить свою запись
-```
+GET    /api/client/bookings            — Записи клиента
+DELETE /api/client/bookings/:id        — Отменить запись
 
-### Мастер (initData.user.id === master.telegram_id)
-```
-GET    /api/master/me                   → профиль
-PUT    /api/master/me                   → обновить профиль
+GET    /api/master/me                  — Профиль мастера
+PUT    /api/master/me                  — Обновить профиль
+GET    /api/master/services            — Список услуг
+POST   /api/master/services            — Добавить услугу
+PUT    /api/master/services/:id        — Обновить услугу
+DELETE /api/master/services/:id        — Удалить услугу
+GET    /api/master/portfolio           — Фото портфолио
+DELETE /api/master/portfolio/:id       — Удалить фото
+GET    /api/master/bookings            — Записи мастера
+PUT    /api/master/bookings/:id        — Подтвердить / отклонить
+GET    /api/master/schedule            — Расписание
+PUT    /api/master/schedule            — Обновить расписание
 
-GET    /api/master/services             → список услуг
-POST   /api/master/services             → добавить (проверка лимита 5 для free)
-PUT    /api/master/services/:id         → редактировать
-DELETE /api/master/services/:id         → удалить
+POST   /api/webhook/platform           — Бот платформы (онбординг, команды владельца)
+POST   /api/webhook/:masterId          — Личный бот мастера
 
-GET    /api/master/portfolio            → список фото
-DELETE /api/master/portfolio/:id        → удалить фото
-
-GET    /api/master/bookings             → все записи (фильтр: status, date)
-PUT    /api/master/bookings/:id         → подтвердить или отменить запись
-
-GET    /api/master/schedule             → расписание
-PUT    /api/master/schedule             → обновить расписание
-```
-
-### Вебхуки (Telegram → VPS)
-```
-POST /api/webhook/platform              → бот платформы (онбординг мастеров)
-POST /api/webhook/:masterId             → личный бот мастера (фото, команды)
-```
-
-### Оплата
-```
-POST /api/payment/invoice               → создать инвойс (провайдер TBD — см. plan.md)
-POST /api/payment/success               → подтверждение оплаты → plan='pro', plan_expires_at = +30 дней
+POST   /api/payment/invoice            — Создать инвойс ЮKassa
+POST   /api/payment/webhook            — Подтверждение оплаты от ЮKassa
 ```
 
 ---
 
-## Два режима мини-аппа
+## Панель владельца
 
-### Режим клиента (по умолчанию)
-- Видит: каталог, профиль мастера, выбор времени, свои записи
-- Не видит: кнопки редактирования
+Работает только для OWNER_TELEGRAM_ID, через команды в боте платформы.
 
-### Режим владельца (мастер открывает свой апп)
-- Бэкенд проверяет: `initData.user.id === master.telegram_id`
-- Дополнительно видит: кнопки редактирования, входящие записи, статусы
-- Может: добавлять/удалять услуги, фото, менять расписание, принимать/отклонять записи
-
----
-
-## Флоу регистрации мастера
-
-```
-Мастер пишет /start в бот платформы
-    ↓
-Бот проверяет: есть ли этот telegram_id в таблице masters?
-  Если да → "Добро пожаловать назад! Ваш бот: @username"
-  Если нет → начать онбординг
-    ↓
-Онбординг по шагам (onboarding_step в БД — сохраняем прогресс):
-  1. Имя мастера
-  2. Специализация
-  3. Телефон
-  4. "Создайте бота через @BotFather и пришлите токен"
-    ↓
-Получен токен → платформа проверяет через getMe API:
-  Ошибка → "Токен неверный, попробуйте ещё раз"
-  Успех → сохранить мастера в БД (токен зашифровать AES-256)
-    ↓
-Платформа автоматически:
-  - Устанавливает webhook: POST setWebhook → https://api.yourdomain.ru/api/webhook/:masterId
-  - Настраивает кнопку меню: setChatMenuButton → "Записаться 💅"
-  - Настраивает команды бота: /help, /contact
-    ↓
-Мастер получает сообщение:
-  "Готово! Ваше приложение: https://t.me/your_bot?start=from_app
-   Откройте бота — он уже настроен и готов принимать клиентов."
-```
+| Команда | Что делает |
+|---------|-----------|
+| /stats | Мастеров всего, Pro/Free, записей сегодня, доход за месяц |
+| /masters | Список мастеров с тарифом и датой истечения |
+| /master [id] | Детали конкретного мастера |
+| /block [id] | Заблокировать мастера |
+| /unblock [id] | Разблокировать мастера |
 
 ---
 
-## Флоу записи клиента
-
-```
-Клиент открывает мини-апп → выбирает услугу → выбирает слот
-    ↓
-POST /api/bookings
-  → запись создаётся: status='pending', expires_at = NOW() + 2 hours
-    ↓
-Личный бот мастера отправляет уведомление мастеру:
-  "📩 Новая запись!
-   👤 [Имя клиента]
-   💅 [Услуга] — [цена] ₽
-   📅 [Дата], [время]
-   ⏳ Ответьте в течение 2 часов"
-   [✅ Принять] [❌ Отклонить]
-    ↓
-Мастер нажимает кнопку:
-  ✅ Принять → status='confirmed' → клиент получает: "Запись подтверждена! 📅 [детали]"
-  ❌ Отклонить → status='cancelled' → клиент получает: "Мастер не может принять в это время. Выберите другой слот."
-    ↓
-Если мастер НЕ ответил за 2 часа:
-  Cron находит запись где expires_at < NOW() AND status='pending'
-  → status='expired'
-  → клиент получает: "К сожалению, мастер не подтвердил запись. Попробуйте выбрать другое время."
-```
+## Порядок разработки
 
 ---
 
-## Напоминания (node-cron на VPS)
+### Этап 0: Локальная разработка — настройка окружения
 
-> ⚠️ Исправлено: убран Vercel Cron Job. Всё на VPS через node-cron.
-
-```js
-// Каждые 15 минут — проверка expired записей
-cron.schedule('*/15 * * * *', checkExpiredBookings);
-
-// Каждый час — отправка напоминаний
-cron.schedule('0 * * * *', sendReminders);
-```
-
-### Логика напоминаний
-```
-Каждый час:
-  SELECT bookings WHERE status='confirmed'
-    AND reminded_24h = false
-    AND date = tomorrow
-  → отправить клиенту через бот мастера:
-    "Напоминание! Завтра в [время] — [услуга] у [мастер].
-     Адрес: [адрес]"
-  → reminded_24h = true
-
-  SELECT bookings WHERE status='confirmed'
-    AND reminded_2h = false
-    AND date = today
-    AND time_slot::time - NOW()::time BETWEEN '1:45' AND '2:15'
-  → отправить клиенту:
-    "Через 2 часа ваша запись — [услуга] в [время]!"
-  → reminded_2h = true
-```
+- [x] Установить Node.js
+- [x] Инициализировать `npm init`, установить зависимости
+- [x] Создать `.env` с ключами Supabase
+- [x] Запустить сервер на localhost:3000
 
 ---
 
-## Загрузка фото (через Telegram)
+### Этап 1: Фундамент — API + фронтенд
 
-```
-Мастер отправляет фото своему боту
-    ↓
-Webhook /api/webhook/:masterId получает message.photo
-    ↓
-Берём наибольшее фото (последний элемент массива photo[])
-    ↓
-getFile API → получаем путь файла на серверах Telegram
-    ↓
-Скачиваем файл через https://api.telegram.org/file/bot{TOKEN}/{file_path}
-    ↓
-Загружаем в Cloudinary → получаем cloudinary_url
-    ↓
-INSERT INTO portfolio (master_id, cloudinary_url, telegram_file_id)
-    ↓
-Бот отвечает: "Фото добавлено в портфолио ✅ (всего: N фото)"
-```
+- [x] Express-сервер с роутами
+- [x] `GET /api/app/:botUsername` — данные мастера, услуги, расписание
+- [x] Фронтенд подключён к API
+- [x] Бот мастера принимает сообщения
 
 ---
 
-## Тарифы и White-Label
+### Этап 2: Записи и напоминания
 
-### Free (бесплатно, навсегда)
-- До 5 активных услуг
-- Неограниченные записи и клиенты
-- Базовая тема (роза)
-- Плашка "Powered by [платформа]" в приложении
-
-### Pro (подписка, ежемесячно)
-- Неограниченное количество услуг
-- Выбор темы: Роза / Лаванда / Золото / Тёмная
-- Загрузка своего логотипа
-- Убирается плашка "Powered by"
-- Кастомный текст на кнопках и экране welcome
-
-### Что происходит когда Pro истекает
-- `plan` остаётся 'pro' но `plan_expires_at` < NOW()
-- Услуги сверх 5 **скрываются** (is_active → false), но **не удаляются**
-- При оплате — все услуги автоматически восстанавливаются
-- Бот платформы напоминает за 3 дня до истечения:
-  > "⚠️ Ваша подписка Pro истекает через 3 дня. Продлите чтобы не терять услуги."
-  > [Продлить подписку]
-- В мини-аппе в режиме владельца появляется баннер с кнопкой оплаты
-
-### Как мастер платит — оба канала
-```
-Канал 1 — бот платформы:
-  За 3 дня до истечения → бот присылает сообщение с кнопкой [Продлить]
-  После истечения → бот присылает раз в 3 дня напоминание
-
-Канал 2 — мини-апп (режим владельца):
-  Раздел "Подписка" → показывает статус + кнопку [Продлить Pro]
-  При нажатии лимита услуг → всплывает предложение перейти на Pro
-```
-
-### Логика проверки лимита
-```js
-// При добавлении услуги через API:
-const { count } = await supabase
-  .from('services')
-  .select('*', { count: 'exact', head: true })
-  .eq('master_id', master.id)
-  .eq('is_active', true);
-
-if (master.plan === 'free' && count >= 5) {
-  // Отправить сообщение в бот мастера о необходимости подписки
-  return res.status(403).json({ error: 'service_limit_reached' });
-}
-```
+- [x] `POST /api/bookings` — создать запись, уведомить мастера
+- [x] Кнопки **Принять** / **Отклонить** в боте мастера
+- [x] `DELETE /api/client/bookings/:id` — отмена записи
+- [x] Cron каждые 15 минут: просроченные записи → expired
+- [x] Cron каждый час: напоминания за 24ч и 2ч до записи
 
 ---
 
-## Порядок разработки (этапы)
+### Этап 3: Панель мастера
 
-> ⚠️ Исправлено: напоминания перенесены в Этап 2 — они критичны для первых мастеров.
-
-### Этап 1 — Фундамент
-1. Арендовать VPS на Beget, установить Node.js
-2. Создать БД в Supabase (все таблицы по схеме выше)
-3. Включить RLS на все таблицы
-4. Написать Express-сервер с базовой структурой роутов
-5. Эндпоинт `GET /api/app/:botUsername` → отдаёт данные мастера
-6. Перенести Анну Козлову из `data.js` в БД как первого мастера
-7. Подключить фронтенд к API (убрать `data.js`, тянуть данные с VPS)
-
-### Этап 2 — Записи + Напоминания
-8. `POST /api/bookings` — создать запись, уведомить мастера
-9. Кнопки "Принять / Отклонить" в боте мастера
-10. `DELETE /api/client/bookings/:id` — клиент отменяет запись
-11. Cron: автоматический `expired` для неотвеченных записей (expires_at)
-12. Cron: напоминания за 24ч и 2ч клиентам
-
-### Этап 3 — Панель мастера
-13. Режим владельца в мини-аппе (определение по telegram_id)
-14. CRUD услуг через апп (с проверкой лимита 5)
-15. Загрузка фото: бот → Cloudinary → портфолио
-16. Редактирование расписания через апп
-
-### Этап 4 — Регистрация новых мастеров
-17. Бот платформы: пошаговый онбординг с сохранением прогресса
-18. Проверка токена бота через Telegram API
-19. Автоматическая настройка webhook + кнопки меню нового мастера
-
-### Этап 5 — Монетизация
-20. Проверка лимита 5 услуг → сообщение с предложением Pro
-21. Оплата подписки (провайдер TBD — см. plan.md)
-22. White-Label: темы, логотип, убрать брендинг после оплаты
+- [x] Определение владельца в мини-аппе по telegram_id
+- [x] CRUD услуг с проверкой лимита 5 (Free тариф)
+- [x] `GET/PUT /api/master/me` — редактирование профиля
 
 ---
 
-## ENV-переменные на VPS (никогда не в GitHub)
+### Этап 4: Регистрация новых мастеров
 
-```env
-# Supabase
-SUPABASE_URL=https://xxxx.supabase.co
-SUPABASE_SERVICE_KEY=xxxx   # service role key — только на сервере!
+- [x] Бот платформы (@beautyspaceplatform_bot): /start → онбординг
+- [x] Сбор данных: имя → специализация → телефон → токен бота
+- [x] Проверка токена через Telegram API (getMe)
+- [x] Шифрование токена AES-256-GCM, сохранение в БД
+- [x] Автоматическая установка webhook для бота мастера
+- [x] Мастер получает ссылку на готовое приложение
 
-# Шифрование токенов ботов мастеров
-ENCRYPTION_KEY=случайная_строка_32_символа
+---
 
-# Бот платформы
-PLATFORM_BOT_TOKEN=xxxx
+### Этап 5: Монетизация
 
-# Cloudinary
-CLOUDINARY_CLOUD_NAME=xxxx
-CLOUDINARY_API_KEY=xxxx
-CLOUDINARY_API_SECRET=xxxx
+*Платная подписка Pro через ЮKassa, лимиты для Free, White-Label возможности.*
 
-# Сервер
-PORT=3000
-ALLOWED_ORIGIN=https://tg-beauty-catalog-ebon.vercel.app
-```
+- [x] Лимит 5 услуг для Free → кнопка "Купить подписку" при попытке добавить больше
+- [x] Создать инвойс ЮKassa: `POST /api/payment/invoice` (месяц и год)
+- [x] Webhook ЮKassa: `POST /api/payment/webhook` с верификацией через GET /payments/:id → активация Pro
+- [x] При активации Pro: is_locked = false у всех услуг автоматически
+- [x] White-Label: выбор темы (Роза / Лаванда / Золото / Тёмная)
+- [x] White-Label: загрузка своего логотипа (через API logo_url)
+- [x] White-Label: скрытие плашки "Powered by" (поле show_branding)
+- [x] Cron каждую ночь 00:00: блокировка услуг сверх 5 у истёкших подписок
+- [x] Уведомление за 3 дня до истечения подписки
+- [x] Напоминание раз в 3 дня после истечения
+
+**Результат:** Платная подписка работает. Free мастера видят лимиты, Pro — полный функционал. Подписка продаётся и продлевается через бота.
+
+---
+
+### Этап 6: Деплой на VPS
+
+- [ ] Арендовать VPS на Beget, установить Node.js + PM2
+- [ ] Купить домен, привязать к VPS
+- [ ] Загрузить код на VPS (`git clone`)
+- [ ] Создать `.env` на VPS с реальными ключами
+- [ ] Настроить nginx (`nginx.conf` → заменить домен)
+- [ ] Получить SSL через Certbot
+- [ ] Запустить сервер: `pm2 start ecosystem.config.js --env production`
+- [ ] Зарегистрировать webhook платформенного бота: `npm run setup`
+- [ ] Указать webhook ЮKassa в личном кабинете
+- [ ] Задеплоить фронтенд на Vercel, указать реальный `API_URL`
+- [ ] Добавить первого мастера (Анна Козлова) в таблицу masters через SQL
+
+**Результат:** Платформа живёт на реальном домене. Боты работают. Клиенты могут записываться.
+
+---
+
+## Напоминания (cron)
+
+| Расписание | Задача |
+|-----------|--------|
+| Каждые 15 минут | Просроченные записи → status=expired, уведомить клиента |
+| Каждый час | Проверка напоминаний за 24ч и 2ч до записи |
+| Каждую ночь 00:00 | Блокировка услуг сверх 5 у истёкших подписок |
+
+---
+
+## ENV-переменные (никогда не в GitHub)
+
+| Переменная | Назначение |
+|-----------|-----------|
+| SUPABASE_URL | URL базы данных |
+| SUPABASE_SERVICE_KEY | Секретный ключ для VPS |
+| ENCRYPTION_KEY | Ключ шифрования токенов (32 символа) |
+| PLATFORM_BOT_TOKEN | Токен бота платформы |
+| OWNER_TELEGRAM_ID | Telegram ID владельца |
+| CLOUDINARY_CLOUD_NAME | Имя аккаунта Cloudinary |
+| CLOUDINARY_API_KEY | API ключ Cloudinary |
+| CLOUDINARY_API_SECRET | Секрет Cloudinary |
+| YUKASSA_SHOP_ID | ID магазина ЮKassa |
+| YUKASSA_SECRET_KEY | Секретный ключ ЮKassa |
+| VPS_NOTIFY_URL | URL уведомлений Supabase → VPS |
+| VPS_NOTIFY_SECRET | Секрет для подписи уведомлений |
+| PORT | Порт сервера (3000) |
+| ALLOWED_ORIGIN | Домен фронтенда |
