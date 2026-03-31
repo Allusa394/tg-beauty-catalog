@@ -15,6 +15,7 @@ const router  = express.Router();
 const https   = require('https');
 const crypto  = require('crypto');
 const supabase = require('../lib/supabase');
+const logger   = require('../lib/logger');
 
 const SHOP_ID      = process.env.YUKASSA_SHOP_ID;
 const SECRET_KEY   = process.env.YUKASSA_SECRET_KEY;
@@ -64,12 +65,13 @@ router.post('/payment/invoice', async (req, res) => {
       metadata: { master_id, months: String(months) }
     });
 
+    logger.info('payment_invoice_created', { master_id, months, payment_id: payment.id, amount: plan.price });
     res.json({
       payment_id: payment.id,
       confirmation_url: payment.confirmation.confirmation_url
     });
   } catch (err) {
-    console.error('[payment] createPayment error:', err.message);
+    logger.error('payment_invoice_failed', { master_id, months, error: err.message });
     res.status(500).json({ error: 'Ошибка создания платежа' });
   }
 });
@@ -136,9 +138,9 @@ router.post('/payment/webhook', async (req, res) => {
     const { notifyMasterProActivated } = require('../lib/notify');
     await notifyMasterProActivated(master_id, monthsNum, expiresAt);
 
-    console.log(`[payment] Pro активирован: master=${master_id}, до ${expiresAt.toISOString().split('T')[0]}`);
+    logger.info('payment_pro_activated', { master_id, months: monthsNum, expires_at: expiresAt.toISOString().split('T')[0] });
   } catch (err) {
-    console.error('[payment] webhook error:', err.message);
+    logger.error('payment_webhook_failed', err);
   }
 });
 

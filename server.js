@@ -6,6 +6,7 @@
 require('dotenv').config();
 const express = require('express');
 const app = express();
+const logger = require('./lib/logger');
 
 // ── Middleware ──────────────────────────────────────────────
 
@@ -27,7 +28,7 @@ const requestCounts = new Map();
 app.use((req, res, next) => {
   const ip = req.ip;
   const now = Date.now();
-  const windowMs = 1000; // 1 секунда
+  const windowMs = 1000;
   const maxRequests = 10;
 
   if (!requestCounts.has(ip)) {
@@ -43,6 +44,7 @@ app.use((req, res, next) => {
 
   data.count++;
   if (data.count > maxRequests) {
+    logger.security('rate_limit_exceeded', { ip, path: req.path });
     return res.status(429).json({ error: 'Too many requests' });
   }
 
@@ -80,13 +82,12 @@ app.get('/', (_req, res) => {
 // ── Обработка ошибок ───────────────────────────────────────
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
-  console.error('Ошибка сервера:', err.message);
+  logger.error('server_error', err);
   res.status(500).json({ error: 'Внутренняя ошибка сервера' });
 });
 
 // ── Запуск ─────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`✓ Сервер запущен на порту ${PORT}`);
-  console.log(`✓ Supabase: ${process.env.SUPABASE_URL ? 'подключён' : 'НЕ НАСТРОЕН'}`);
+  logger.info('server_started', { port: PORT, supabase: process.env.SUPABASE_URL ? 'ok' : 'NOT SET' });
 });

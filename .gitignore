@@ -6,6 +6,9 @@ setup_bot.py
 # Зависимости
 node_modules/
 
+# Логи
+logs/
+
 # Системные файлы
 .DS_Store
 Thumbs.db

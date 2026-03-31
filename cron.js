@@ -11,6 +11,7 @@
 
 const cron = require('node-cron');
 const supabase = require('./lib/supabase');
+const logger = require('./lib/logger');
 const {
   notifyClientExpired,
   remindClient,
@@ -20,7 +21,7 @@ const {
 
 // ── Каждые 15 минут: закрыть просроченные записи ───────────
 cron.schedule('*/15 * * * *', async () => {
-  console.log('[cron] Проверка просроченных записей...');
+  logger.info('[cron] Проверка просроченных записей...');
   try {
     const now = new Date().toISOString();
 
@@ -50,13 +51,13 @@ cron.schedule('*/15 * * * *', async () => {
 
     console.log(`[cron] Закрыто просроченных записей: ${expired.length}`);
   } catch (err) {
-    console.error('[cron] expired error:', err.message);
+    logger.error('[cron] expired error:', err.message);
   }
 });
 
 // ── Каждый час: напоминания клиентам ───────────────────────
 cron.schedule('0 * * * *', async () => {
-  console.log('[cron] Проверка напоминаний...');
+  logger.info('[cron] Проверка напоминаний...');
   try {
     const now = new Date();
 
@@ -112,13 +113,13 @@ cron.schedule('0 * * * *', async () => {
     if (total > 0) console.log(`[cron] Напоминаний отправлено: ${total}`);
 
   } catch (err) {
-    console.error('[cron] reminders error:', err.message);
+    logger.error('[cron] reminders error:', err.message);
   }
 });
 
 // ── Каждую ночь 00:00: блокировка услуг истёкших подписок ──
 cron.schedule('0 0 * * *', async () => {
-  console.log('[cron] Проверка истёкших подписок...');
+  logger.info('[cron] Проверка истёкших подписок...');
   try {
     const now = new Date().toISOString();
 
@@ -160,13 +161,13 @@ cron.schedule('0 0 * * *', async () => {
 
     console.log(`[cron] Обработано истёкших подписок: ${expiredMasters.length}`);
   } catch (err) {
-    console.error('[cron] subscription lock error:', err.message);
+    logger.error('[cron] subscription lock error:', err.message);
   }
 });
 
 // ── Каждый день в 10:00: уведомления о подписке ────────────
 cron.schedule('0 10 * * *', async () => {
-  console.log('[cron] Проверка подписок...');
+  logger.info('[cron] Проверка подписок...');
   try {
     const now = new Date();
 
@@ -215,7 +216,7 @@ cron.schedule('0 10 * * *', async () => {
     if (reminders > 0) console.log(`[cron] Напоминаний о продлении подписки: ${reminders}`);
 
   } catch (err) {
-    console.error('[cron] subscription notify error:', err.message);
+    logger.error('[cron] subscription notify error:', err.message);
   }
 });
 
@@ -229,4 +230,4 @@ async function getClientTelegramId(clientId) {
   return data?.telegram_id || null;
 }
 
-console.log('[cron] Задачи запущены');
+logger.info('[cron] Задачи запущены');
