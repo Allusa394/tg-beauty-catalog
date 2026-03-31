@@ -6,7 +6,7 @@
 require('dotenv').config();
 const express = require('express');
 const app = express();
-const logger = require('./lib/logger');
+const logger = require('./lib/log');
 
 // ── Middleware ──────────────────────────────────────────────
 

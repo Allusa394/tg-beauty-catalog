@@ -15,7 +15,7 @@ const router  = express.Router();
 const https   = require('https');
 const crypto  = require('crypto');
 const supabase = require('../lib/supabase');
-const logger   = require('../lib/logger');
+const logger   = require('../lib/log');
 
 const SHOP_ID      = process.env.YUKASSA_SHOP_ID;
 const SECRET_KEY   = process.env.YUKASSA_SECRET_KEY;

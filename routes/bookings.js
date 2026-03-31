@@ -8,7 +8,7 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../lib/supabase');
 const { notifyMaster } = require('../lib/notify');
-const logger = require('../lib/logger');
+const logger = require('../lib/log');
 
 // ── POST /api/bookings ──────────────────────────────────────
 // Клиент выбирает услугу и слот — создаём запись.

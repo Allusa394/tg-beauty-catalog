@@ -11,7 +11,7 @@
 
 const cron = require('node-cron');
 const supabase = require('./lib/supabase');
-const logger = require('./lib/logger');
+const logger = require('./lib/log');
 const {
   notifyClientExpired,
   remindClient,
