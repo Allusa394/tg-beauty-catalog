@@ -350,9 +350,10 @@ function renderHome() {
       <div class="section-title">Мои работы</div>
     </div>
     <div class="portfolio-scroll">
-      ${MASTER.portfolio.map(emoji => `
-        <div class="portfolio-item">${emoji}</div>
-      `).join('')}
+      ${MASTER.portfolio.map(item => item.startsWith('http')
+        ? `<div class="portfolio-item"><img src="${item}" alt="Работа мастера" loading="lazy"></div>`
+        : `<div class="portfolio-item">${item}</div>`
+      ).join('')}
     </div>
 
     <!-- Кнопка записаться -->
@@ -600,7 +601,10 @@ function openService(serviceId) {
       <div class="section-title">Примеры работ</div>
     </div>
     <div class="works-scroll" style="margin-bottom:8px">
-      ${service.works.map(e => `<div class="work-item">${e}</div>`).join('')}
+      ${service.works.map(e => e.startsWith('http')
+        ? `<div class="work-item"><img src="${e}" alt="${service.name}" loading="lazy"></div>`
+        : `<div class="work-item">${e}</div>`
+      ).join('')}
     </div>
 
     <!-- Кнопка -->

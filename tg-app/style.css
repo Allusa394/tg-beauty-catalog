@@ -511,7 +511,14 @@ html, body {
   justify-content: center;
   font-size: 34px;
   cursor: pointer;
+  overflow: hidden;
   transition: transform var(--transition-fast);
+}
+
+.portfolio-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .portfolio-item:active { transform: scale(0.92); }
@@ -640,7 +647,14 @@ body.dark .badge-rating {
   justify-content: center;
   font-size: 38px;
   cursor: pointer;
+  overflow: hidden;
   transition: transform var(--transition-fast);
+}
+
+.work-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .work-item:active { transform: scale(0.92); }

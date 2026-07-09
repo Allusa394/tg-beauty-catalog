@@ -17,7 +17,22 @@ const MASTER = {
   telegram: 'https://t.me/beauty_vika_master',
   botUsername: 'anna_beauty_nail_bot', // username бота (без @)
   about: 'Привет! Меня зовут Виктория, я сертифицированный мастер с 6-летним опытом. Создаю идеальный маникюр, педикюр и брови — от классики до сложного дизайна. Работаю с премиальными материалами, соблюдаю стерильность. Каждый клиент уходит довольным 🌸',
-  portfolio: ['💅', '🌸', '💎', '✨', '🩷', '🌺', '💗', '🦋', '🪷', '💜', '🌼', '💫'],
+  // Демо-фото с Unsplash (свободная лицензия). Перед продажей клиенту —
+  // заменить на реальные фото её работ, формат ссылки такой же.
+  portfolio: [
+    'https://images.unsplash.com/photo-1727199433231-346fd8101839?w=400&q=70&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1707725238063-0c54fb6963d1?w=400&q=70&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1637851497145-0faa2e456081?w=400&q=70&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1639629509821-c54cdd984227?w=400&q=70&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1604902396830-aca29e19b067?w=400&q=70&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1664643411326-6c589531be3c?w=400&q=70&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1754799670312-8e7da8e40ad7?w=400&q=70&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1567629307995-b9f33097bd30?w=400&q=70&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1519415387722-a1c3bbef716c?w=400&q=70&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1754799670410-b282791342c3?w=400&q=70&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1690749138086-7422f71dc159?w=400&q=70&auto=format&fit=crop',
+    'https://plus.unsplash.com/premium_photo-1661963453197-9a8ddee245d7?w=400&q=70&auto=format&fit=crop',
+  ],
 
   // White-Label настройки (перезаписываются из API)
   theme:            'blue',  // blue | rose | lavender | gold | dark
@@ -49,7 +64,14 @@ const SERVICES = [
     price: 2500,
     duration: '1 ч 30 мин',
     rating: 4.9,
-    works: ['💅', '🌸', '💗', '🩷', '💜', '✨'],
+    works: [
+      'https://images.unsplash.com/photo-1727199433231-346fd8101839?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1604902396830-aca29e19b067?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1754799670410-b282791342c3?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1688583417757-9060cba25399?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1645566372784-7d017ad7643b?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1690749138086-7422f71dc159?w=400&q=70&auto=format&fit=crop',
+    ],
   },
   {
     id: 2,
@@ -61,7 +83,14 @@ const SERVICES = [
     price: 1200,
     duration: '1 час',
     rating: 4.8,
-    works: ['✨', '🌼', '💫', '🤍', '🌿', '🕊️'],
+    works: [
+      'https://images.unsplash.com/photo-1597999709389-e29dc41e218a?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1684609365994-a144ee021c88?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1688583417757-9060cba25399?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1645566372784-7d017ad7643b?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1727199433231-346fd8101839?w=400&q=70&auto=format&fit=crop',
+    ],
   },
   {
     id: 3,
@@ -73,7 +102,14 @@ const SERVICES = [
     price: 4500,
     duration: '3 часа',
     rating: 4.9,
-    works: ['💎', '💅', '🌸', '🩷', '🔴', '🖤'],
+    works: [
+      'https://images.unsplash.com/photo-1754799670312-8e7da8e40ad7?w=400&q=70&auto=format&fit=crop',
+      'https://plus.unsplash.com/premium_photo-1783365870332-fee857385ac5?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1754799670410-b282791342c3?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1688583417757-9060cba25399?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1645566372784-7d017ad7643b?w=400&q=70&auto=format&fit=crop',
+    ],
   },
   {
     id: 4,
@@ -85,7 +121,14 @@ const SERVICES = [
     price: 3200,
     duration: '1 ч 30 мин',
     rating: 4.9,
-    works: ['🦶', '🌸', '💅', '🩷', '🌺', '✨'],
+    works: [
+      'https://images.unsplash.com/photo-1707725238063-0c54fb6963d1?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1664643411326-6c589531be3c?w=400&q=70&auto=format&fit=crop',
+      'https://plus.unsplash.com/premium_photo-1661499249417-c20d6b668469?w=400&q=70&auto=format&fit=crop',
+      'https://plus.unsplash.com/premium_photo-1661963453197-9a8ddee245d7?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1762114468806-6eefd10ae3aa?w=400&q=70&auto=format&fit=crop',
+      'https://plus.unsplash.com/premium_photo-1661964142016-67af80c1aa92?w=400&q=70&auto=format&fit=crop',
+    ],
   },
   {
     id: 5,
@@ -97,7 +140,14 @@ const SERVICES = [
     price: 2200,
     duration: '1 час',
     rating: 4.8,
-    works: ['🧴', '🌿', '✨', '🤍', '🕊️', '🌼'],
+    works: [
+      'https://images.unsplash.com/photo-1664643411326-6c589531be3c?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1707725238063-0c54fb6963d1?w=400&q=70&auto=format&fit=crop',
+      'https://plus.unsplash.com/premium_photo-1661963453197-9a8ddee245d7?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1762114468806-6eefd10ae3aa?w=400&q=70&auto=format&fit=crop',
+      'https://plus.unsplash.com/premium_photo-1661499249417-c20d6b668469?w=400&q=70&auto=format&fit=crop',
+      'https://plus.unsplash.com/premium_photo-1661964142016-67af80c1aa92?w=400&q=70&auto=format&fit=crop',
+    ],
   },
   {
     id: 6,
@@ -109,7 +159,14 @@ const SERVICES = [
     price: 800,
     duration: '30 минут',
     rating: 4.7,
-    works: ['🪮', '🌿', '✨', '💫', '🤍', '🌸'],
+    works: [
+      'https://images.unsplash.com/photo-1637851497145-0faa2e456081?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1519415387722-a1c3bbef716c?w=400&q=70&auto=format&fit=crop',
+      'https://plus.unsplash.com/premium_photo-1683147720304-bc9a8a6f361b?w=400&q=70&auto=format&fit=crop',
+      'https://plus.unsplash.com/premium_photo-1671717724080-b31452cad3fa?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1595550912256-b24059bb08e8?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1534143826428-81fc61582afd?w=400&q=70&auto=format&fit=crop',
+    ],
   },
   {
     id: 7,
@@ -121,7 +178,14 @@ const SERVICES = [
     price: 1400,
     duration: '45 минут',
     rating: 4.8,
-    works: ['🎨', '🪮', '💫', '🌿', '✨', '💗'],
+    works: [
+      'https://plus.unsplash.com/premium_photo-1683147720304-bc9a8a6f361b?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1595550912256-b24059bb08e8?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1637851497145-0faa2e456081?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1534143826428-81fc61582afd?w=400&q=70&auto=format&fit=crop',
+      'https://plus.unsplash.com/premium_photo-1671717724080-b31452cad3fa?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1519415387722-a1c3bbef716c?w=400&q=70&auto=format&fit=crop',
+    ],
   },
   {
     id: 8,
@@ -133,7 +197,14 @@ const SERVICES = [
     price: 2000,
     duration: '2 часа',
     rating: 4.9,
-    works: ['👁️', '🌸', '💫', '✨', '🦋', '🌺'],
+    works: [
+      'https://images.unsplash.com/photo-1639629509821-c54cdd984227?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1567629307995-b9f33097bd30?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1735151226446-1d364b4adc2f?w=400&q=70&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1548902378-2ec44c906391?w=400&q=70&auto=format&fit=crop',
+      'https://plus.unsplash.com/premium_photo-1670006625877-c44709fb95c9?w=400&q=70&auto=format&fit=crop',
+      'https://plus.unsplash.com/premium_photo-1661393486358-58da5572e516?w=400&q=70&auto=format&fit=crop',
+    ],
   },
 ];
 
