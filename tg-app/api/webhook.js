@@ -6,13 +6,23 @@ const https = require('https');
 
 const TOKEN = process.env.BOT_TOKEN;
 
+const WEBAPP_URL = 'https://tg-beauty-catalog-ebon.vercel.app/';
+
 const WELCOME_TEXT =
-  'Привет! Я бот мастера маникюра Анны Козловой 🎉\n' +
+  'Привет! Я бот мастера маникюра Виктории Соколовой 🎉\n' +
   'Здесь ты можешь посмотреть услуги, выбрать удобное время и записаться онлайн — без звонков и ожидания.\n' +
   'Нажми кнопку «Записаться» чтобы открыть каталог услуг 👇';
 
 function sendMessage(chatId, text) {
-  const data = JSON.stringify({ chat_id: chatId, text });
+  const data = JSON.stringify({
+    chat_id: chatId,
+    text,
+    reply_markup: {
+      inline_keyboard: [[
+        { text: '💅 Записаться', web_app: { url: WEBAPP_URL } }
+      ]]
+    }
+  });
   return new Promise((resolve) => {
     const req = https.request({
       hostname: 'api.telegram.org',

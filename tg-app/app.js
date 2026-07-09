@@ -49,12 +49,13 @@ function applyMasterTheme(theme) {
 
 /* ── 2. API ── */
 
-// URL сервера: локально — localhost, на проде — домен VPS
-// ⚠️ ПЕРЕД ДЕПЛОЕМ: замени строку ниже на реальный домен VPS
-// Пример: 'https://beauty.example.ru'
+// URL сервера: локально — localhost, на проде — домен VPS.
+// null = демо-режим: записи сохраняются только на телефоне посетителя,
+// приложение не делает запросов к серверу. При продаже клиенту —
+// вписать адрес его сервера, например: 'https://beauty.example.ru'
 const API_URL = window.location.hostname === 'localhost'
   ? 'http://localhost:3000'
-  : 'https://ВАШ_ДОМЕН'; // ← заменить здесь
+  : null;
 
 // Определяем username бота — по нему находим мастера.
 // Клиент открывает приложение по ссылке вида: https://t.me/ИМЯ_БОТА
@@ -86,7 +87,7 @@ function poweredByBadge() {
 // Если API недоступен — работает с data.js (полезно при локальной разработке).
 async function loadFromAPI() {
   const botUser = getBotUsername();
-  if (!botUser) return;
+  if (!API_URL || !botUser) return;
 
   try {
     const res = await fetch(`${API_URL}/api/app/${botUser}`);
@@ -755,7 +756,7 @@ async function fetchAndRenderSlots(dayIndex) {
   const dateKey = toDateKey(dates[dayIndex].date);
   const botUser = getBotUsername();
 
-  if (!botUser || state.slotsCache[dateKey] !== undefined) return;
+  if (!API_URL || !botUser || state.slotsCache[dateKey] !== undefined) return;
 
   try {
     const res = await fetch(`${API_URL}/api/app/${botUser}/slots?date=${dateKey}`);
@@ -961,7 +962,9 @@ function renderSuccessScreen(booking) {
         ${booking.date} · ${booking.slot}
       </div>
       <div class="success-remind">
-        🔔 Напоминание придёт в Telegram<br>за 24 часа и за 2 часа до визита
+        ${state.apiLoaded
+          ? '🔔 Напоминание придёт в Telegram<br>за 24 часа и за 2 часа до визита'
+          : '💡 Это демо-запись — она видна только вам.<br>В рабочей версии мастер получает уведомление,<br>а клиенту приходят напоминания в Telegram'}
       </div>
       <div style="margin-top:32px;width:100%">
         <button class="main-btn" onclick="gotoBookings()">
